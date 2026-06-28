@@ -16,12 +16,15 @@ dependencies = [
     "pydantic>=2.0",
     "alembic>=1.13",
     "psycopg2-binary>=2.9",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
+    "pytest-mock>=3.12",
 ]
 
 [tool.pytest.ini_options]

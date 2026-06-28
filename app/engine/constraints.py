@@ -20,54 +20,71 @@ _CONSTRAINT_TO_RISK_CATEGORY = {
 }
 
 
+def _lot_constraint_flags(
+    lot_geometry,
+    constraint: ConstraintInput,
+) -> tuple[bool, RiskFlag | None]:
+    """
+    Evaluate one constraint against one lot.
+
+    Returns (eliminated, flag_or_None). eliminated=True means the scenario
+    should be discarded; flag_or_None is a non-blocking risk flag to attach.
+    """
+    overlap = lot_geometry.intersection(constraint.geometry)
+    if overlap.is_empty:
+        return False, None
+
+    coverage = overlap.area / lot_geometry.area
+
+    if (constraint.severity == ConstraintSeverity.BLOCKING
+            and coverage >= _BLOCKING_COVERAGE_THRESHOLD):
+        return True, None
+
+    risk_cat = _CONSTRAINT_TO_RISK_CATEGORY.get(
+        constraint.constraint_type, RiskCategory.DATA_GAP
+    )
+    flag = RiskFlag(
+        category=risk_cat,
+        severity=constraint.severity,
+        message=(
+            f"{constraint.constraint_type.value} covers "
+            f"{coverage:.0%} of one resulting lot."
+        ),
+    )
+    return False, flag
+
+
+def _evaluate_scenario(
+    scenario: ScenarioResult,
+    constraints: list[ConstraintInput],
+) -> tuple[bool, list[RiskFlag]]:
+    """
+    Check all constraints against all lots in one scenario.
+
+    Returns (eliminated, extra_flags). If eliminated, extra_flags is empty.
+    """
+    extra_flags: list[RiskFlag] = []
+    for constraint in constraints:
+        for lot in scenario.resulting_lots:
+            eliminated, flag = _lot_constraint_flags(lot.geometry, constraint)
+            if eliminated:
+                return True, []
+            if flag is not None:
+                extra_flags.append(flag)
+    return False, extra_flags
+
+
 def apply_constraints(
     scenarios: list[ScenarioResult],
     constraints: list[ConstraintInput],
 ) -> list[ScenarioResult]:
-    """
-    Filter and annotate scenarios based on environmental constraints.
-
-    - BLOCKING constraint covering >= 50% of any lot's area → remove that scenario entirely
-    - SIGNIFICANT constraint intersecting any lot → keep scenario, add risk flag
-    - MINOR/INFORMATIONAL → add risk flag only (lower severity)
-    """
     if not constraints:
         return scenarios
 
     surviving = []
     for scenario in scenarios:
-        eliminated = False
-        extra_flags: list[RiskFlag] = []
-
-        for constraint in constraints:
-            if eliminated:
-                break
-            for lot in scenario.resulting_lots:
-                overlap = lot.geometry.intersection(constraint.geometry)
-                if overlap.is_empty:
-                    continue
-
-                coverage = overlap.area / lot.geometry.area
-
-                if (constraint.severity == ConstraintSeverity.BLOCKING
-                        and coverage >= _BLOCKING_COVERAGE_THRESHOLD):
-                    eliminated = True
-                    break
-
-                risk_cat = _CONSTRAINT_TO_RISK_CATEGORY.get(
-                    constraint.constraint_type, RiskCategory.DATA_GAP
-                )
-                extra_flags.append(RiskFlag(
-                    category=risk_cat,
-                    severity=constraint.severity,
-                    message=(
-                        f"{constraint.constraint_type.value} covers "
-                        f"{coverage:.0%} of one resulting lot."
-                    ),
-                ))
-
+        eliminated, extra_flags = _evaluate_scenario(scenario, constraints)
         if not eliminated:
             scenario.risk_flags.extend(extra_flags)
             surviving.append(scenario)
-
     return surviving
