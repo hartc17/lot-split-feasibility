@@ -4,125 +4,117 @@
 
 ```mermaid
 flowchart TB
-    subgraph External["External Data Sources"]
-        GIS["Hays County GIS\nArcGIS FeatureServer"]
-        CAD["Hays CAD\nAssessor Data"]
-        ENV["FEMA / NWI / SSURGO\nEnvironmental Layers (Phase 4)"]
-        ZON["Kyle TX Code Ch. 53\nZoning Ordinance (hand-encoded)"]
+    subgraph Input["Input Layer — user provides geometry + rules"]
+        UPLOAD["File Upload\n(GeoJSON / KML / Shapefile zip)"]
+        DRAW["Draw on Map\n(frontend — Phase 6)"]
+        APN["Address / APN Lookup\n(optional convenience path)"]
+        FORM["Zoning Rules Form\n(min lot size, setbacks, etc.)"]
     end
 
-    subgraph Adapters["app/adapters/  — DB-driven, jurisdiction-generic"]
-        CFG["JurisdictionConfig.from_orm()\nReads GIS config from Jurisdiction DB row"]
-        ARC["ArcGISParcelAdapter\narcgis.py — generic for any ArcGIS county"]
-        NORM["normalizer.py\nGeoJSON → Parcel fields\ngeodetic area via pyproj.Geod"]
-        ZM["zoning_mapper.py\nRaw GIS code → ZoningDistrict.id\nvia Jurisdiction.gis_zoning_code_map"]
-        ING["ingestion.py\nOrchestrates fetch → normalize → upsert"]
-        EA["Env Constraint Adapter\n(Phase 4)"]
+    subgraph Parsers["app/parsers/"]
+        PGJ["geojson.py"]
+        PKML["kml.py"]
+        PSHP["shapefile.py"]
+        PROJ["projection.py\nWGS84 → local feet\n(auto-UTM zone detection)"]
 
-        CFG --> ARC
-        ARC --> NORM
-        NORM --> ZM
-        ZM --> ING
-        NORM --> ING
+        PGJ --> PROJ
+        PKML --> PROJ
+        PSHP --> PROJ
     end
 
-    subgraph DB["PostgreSQL + PostGIS"]
-        J["jurisdictions\n(+ gis_feature_server_url\n  gis_field_map\n  gis_zoning_code_map)"]
-        ZD["zoning_districts"]
-        P["parcels"]
-        EC["environmental_constraints"]
-        SS["subdivision_scenarios"]
-        FR["feasibility_reports"]
+    subgraph API["app/api/"]
+        PARSE["/v1/parse/*\nReturns polygon + labeled edges\n(user picks road side)"]
+        FEAS["/v1/feasibility POST\nRuns engine, returns result"]
+        HEALTH["/health"]
+    end
 
-        J -->|1:many| ZD
-        J -->|1:many| P
-        ZD -->|1:many| P
-        P -->|1:many| EC
-        P -->|1:many| SS
-        P -->|1:many| FR
-        SS -->|referenced by| FR
+    subgraph EngineInputs["app/engine/inputs.py"]
+        BPG["build_parcel_geometry_input()\nprojects polygon, extracts frontage edge"]
+        BZR["build_zoning_rules_input()\nvalidates user-entered fields"]
     end
 
     subgraph Engine["app/engine/  — pure functions, zero I/O"]
-        T["types.py\nParcelGeometryInput\nZoningRulesInput\nConstraintInput\nSubdivisionFeasibilityResult"]
-        G["geometry.py\ninterior_normal()\nmeasure_frontage_width()\nhas_buildable_envelope()"]
-        EL["eligibility.py\ncheck_eligibility()"]
-        SH["strategies/simple_halve.py\nrun_frontage_strip()\nrun_simple_halve()"]
-        FL["strategies/flag_lot.py\nrun_flag_lot()"]
-        CN["constraints.py\n_lot_constraint_flags()\n_evaluate_scenario()\napply_constraints()"]
+        T["types.py\nParcelGeometryInput\nZoningRulesInput\nConstraintInput"]
+        G["geometry.py"]
+        EL["eligibility.py"]
+        STRAT["strategies/\nsimple_halve, frontage_strip, flag_lot"]
+        CN["constraints.py"]
         CA["calculator.py\ncalculate_subdivision_scenarios()"]
 
         T --> G
         T --> EL
-        T --> SH
-        T --> FL
+        T --> STRAT
         T --> CN
         EL --> CA
-        SH --> CA
-        FL --> CA
+        STRAT --> CA
         CN --> CA
         G --> EL
-        G --> SH
-        G --> FL
+        G --> STRAT
     end
 
-    subgraph API["app/api/  (Phase 7)"]
-        EP["/v1/reports POST\n/v1/reports/{id} GET"]
+    subgraph OptionalAPN["Optional: APN lookup path (app/adapters/)"]
+        ARC["ArcGISParcelAdapter\nGeneric — any ArcGIS county"]
+        NORM["normalizer.py\nGeoJSON → area_sqft, centroid"]
+        CFG["JurisdictionConfig.from_orm()\nBuilt from Jurisdiction DB row"]
+        CFG --> ARC
+        ARC --> NORM
     end
 
-    subgraph Scripts["scripts/"]
-        SEED["seed_hays_county.py\nOne-time DB seed for Kyle TX"]
-        VAL["validate_parcels.py\nCLI spot-check vs. live GIS"]
+    subgraph DB["PostgreSQL + PostGIS (Phase 4+)"]
+        REPORTS["reports\ngeometry_geojson, zoning_rules\nresult (JSONB), status"]
+        JURISDICTIONS["jurisdictions (optional)\ngis_feature_server_url\ngis_field_map"]
+        JURISDICTIONS --> CFG
     end
 
-    GIS --> ARC
-    CAD --> ARC
-    ENV --> EA
-    ZON -->|human encodes| ZD
-    J -->|config| CFG
+    UPLOAD --> Parsers
+    DRAW --> FEAS
+    APN --> OptionalAPN
+    NORM --> PARSE
 
-    ING --> P
-    EA --> EC
+    Parsers --> PARSE
+    PARSE --> FEAS
+    FORM --> FEAS
 
-    P --> CA
-    ZD --> CA
-    EC --> CA
+    FEAS --> BPG
+    FEAS --> BZR
+    BPG --> CA
+    BZR --> CA
 
-    CA --> SS
-    CA --> FR
-
-    EP --> CA
-    SEED --> J
+    CA --> REPORTS
+    CA --> FEAS
 ```
 
-## Adapter Data Flow
+## Input → Parse → Select Edge → Run Flow
 
 ```mermaid
-flowchart LR
-    subgraph Input
-        JR["Jurisdiction DB row\n(gis_feature_server_url\ngis_field_map\ngis_zoning_code_map)"]
-        APN["APN string"]
-    end
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API
+    participant Parsers
+    participant Engine
 
-    JR --> CFG["JurisdictionConfig.from_orm()"]
-    CFG --> ADA["ArcGISParcelAdapter\nHTTP GET → GeoJSON"]
-    APN --> ADA
+    User->>Frontend: Upload GeoJSON / KML / SHP
+    Frontend->>API: POST /v1/parse/{format}
+    API->>Parsers: parse → project to feet
+    Parsers-->>API: polygon + edges [{index, length_ft}]
+    API-->>Frontend: ParseResponse
 
-    ADA -->|"None if not found"| NONE["return None"]
-    ADA -->|"ParcelRecord"| NORM["normalizer.normalize()\nShapely + pyproj.Geod\narea_sqft, centroid, WKB"]
+    Frontend->>User: Show parcel on map, label each edge
+    User->>Frontend: Click road-facing edge (frontage_edge_index)
+    User->>Frontend: Fill in zoning rules form
 
-    NORM --> ZM["zoning_mapper\n.resolve_zoning_district_id()\nDB lookup via gis_zoning_code_map"]
-    ZM -->|"UUID or None"| UPSERT
-
-    NORM --> UPSERT["ingestion\nSELECT existing → UPDATE\nor INSERT new Parcel"]
-    UPSERT --> DB["parcels table"]
+    Frontend->>API: POST /v1/feasibility {geometry, frontage_edge_index, zoning}
+    API->>Engine: build_parcel_geometry_input() + calculate_subdivision_scenarios()
+    Engine-->>API: SubdivisionFeasibilityResult
+    API-->>Frontend: FeasibilityResponse {scenarios, flags, max_lots}
 ```
 
 ## Engine Data Flow
 
 ```mermaid
 flowchart LR
-    IN["ParcelGeometryInput\nZoningRulesInput\nConstraintInput[]\nStructureInput[]"]
+    IN["ParcelGeometryInput\n(boundary in feet, frontage_edge)\nZoningRulesInput\nConstraintInput[]\nStructureInput[]"]
 
     IN --> EL["check_eligibility()"]
     EL -->|"DATA_GAP or\nMULTI_DISTRICT"| EARLY1["return early\ndata_gap=True"]
@@ -139,10 +131,34 @@ flowchart LR
     RANK --> OUT["SubdivisionFeasibilityResult\nmax_theoretical_lots\nscenarios[]\ndisqualifying_flags[]"]
 ```
 
+## Projection Pipeline
+
+```mermaid
+flowchart LR
+    RAW["Uploaded geometry\nEPSG:4326 (WGS84)\nPolygon Z or 2D"]
+
+    RAW -->|"parse_geojson / parse_kml\n/ parse_shapefile_zip"| POLY["Shapely Polygon\n(2D, WGS84)"]
+    POLY -->|"get_utm_epsg(centroid)\nTransformer.from_crs()"| UTM["Polygon\n(UTM meters)"]
+    UTM -->|"× 3.28084"| FEET["Polygon\n(US survey feet)\nready for engine"]
+    FEET -->|"extract_edge(n)"| EDGE["LineString\nfrontage_edge\n(feet)"]
+```
+
 ## Database Schema
 
 ```mermaid
 erDiagram
+    reports {
+        uuid id PK
+        jsonb geometry_geojson
+        int frontage_edge_index
+        jsonb zoning_rules
+        jsonb result
+        string status
+        text error_message
+        timestamp created_at
+        timestamp completed_at
+    }
+
     jurisdictions {
         uuid id PK
         string name
@@ -165,9 +181,7 @@ erDiagram
         int setback_side_ft
         int setback_rear_ft
         bool allows_flag_lots
-        int flag_lot_min_access_strip_ft
         date last_verified_date
-        string source_ordinance_section
     }
 
     parcels {
@@ -176,57 +190,17 @@ erDiagram
         uuid zoning_district_id FK
         string apn
         geometry geometry
-        geometry centroid
         float area_sqft
-        float area_acres
         string zoning_code_raw
-        jsonb raw_assessor_data
         timestamp data_fetched_at
-    }
-
-    environmental_constraints {
-        uuid id PK
-        uuid parcel_id FK
-        enum constraint_type
-        enum severity
-        geometry geometry
-        float coverage_pct
-        jsonb detail
-    }
-
-    subdivision_scenarios {
-        uuid id PK
-        uuid parcel_id FK
-        int num_resulting_lots
-        enum lot_layout_type
-        jsonb resulting_lots
-        bool requires_variance
-        bool requires_rezone
-        bool requires_flag_lot_provision
-        enum subdivision_review_tier
-        string engine_version
-    }
-
-    feasibility_reports {
-        uuid id PK
-        uuid parcel_id FK
-        uuid primary_scenario_id FK
-        enum status
-        int overall_score
-        enum recommendation
-        jsonb risk_flags
-        timestamp requested_at
-        timestamp completed_at
     }
 
     jurisdictions ||--o{ zoning_districts : "has"
     jurisdictions ||--o{ parcels : "contains"
     zoning_districts ||--o{ parcels : "governs"
-    parcels ||--o{ environmental_constraints : "has"
-    parcels ||--o{ subdivision_scenarios : "has"
-    parcels ||--o{ feasibility_reports : "has"
-    subdivision_scenarios ||--o| feasibility_reports : "primary scenario"
 ```
+
+> **Note:** The `reports` table is the primary table for the user-input flow and requires only PostgreSQL (no PostGIS). The `jurisdictions`, `zoning_districts`, and `parcels` tables support the optional APN-lookup path and are only needed if that feature is activated.
 
 ## Engine Isolation Contract
 
@@ -240,17 +214,23 @@ erDiagram
 | `geoalchemy2` | Engine uses Shapely geometries only |
 | `psycopg2` | No direct DB connections |
 
-All engine inputs are plain Python dataclasses (`app/engine/types.py`). The calling layer (adapters → orchestration → API) is responsible for fetching data from the DB, projecting geometries to feet, and constructing the input structs before calling `calculate_subdivision_scenarios()`.
+All engine inputs are plain Python dataclasses (`app/engine/types.py`). The calling layer (`app/engine/inputs.py` → `app/api/routes/feasibility.py`) is responsible for parsing uploaded geometry, projecting to feet, selecting the frontage edge, and constructing the input structs before calling `calculate_subdivision_scenarios()`.
 
-## Adding a New Jurisdiction
+## Two Input Paths
 
-No new Python code is required. The steps are:
+```mermaid
+flowchart LR
+    subgraph Primary["Primary path (any jurisdiction, no DB)"]
+        UP["Upload / Draw"] --> PARSE["app/parsers/\n→ Shapely Polygon"] --> PROJ2["projection.py\n→ feet"] --> INP["inputs.py\n→ ParcelGeometryInput"]
+        FORM2["Zoning form"] --> ZR["inputs.py\n→ ZoningRulesInput"]
+    end
 
-1. Create a seed script in `scripts/` that inserts one `Jurisdiction` row with:
-   - `gis_feature_server_url` — the county's ArcGIS FeatureServer URL
-   - `gis_field_map` — JSON mapping canonical roles to actual GIS field names
-   - `gis_zoning_code_map` — JSON mapping raw GIS zoning strings to `ZoningDistrict.code` values
-2. Manually encode `ZoningDistrict` rows for each relevant residential district (per spec §5.2), citing `source_ordinance_section` and setting `last_verified_date`.
-3. Run the seed script against the target DB.
+    subgraph Optional["Optional path (ArcGIS-served counties)"]
+        APN2["APN / address"] --> ARC2["ArcGISParcelAdapter"] --> NORM2["normalizer.py"] --> INP
+        DB2["Jurisdiction DB row"] --> ARC2
+    end
 
-The `ArcGISParcelAdapter` and `ParcelIngestionService` require no changes.
+    INP --> CALC["calculate_subdivision_scenarios()"]
+    ZR --> CALC
+    CALC --> RESULT["FeasibilityResponse"]
+```

@@ -1,10 +1,12 @@
 # Lot Split Feasibility Engine — Technical Specification
 
-**Status:** Draft v1 for initial implementation
+**Status:** Draft v1 — updated 2026-06-28 to reflect general-purpose pivot
 **Audience:** Claude Code (autonomous build agent) and the engineer directing it
-**Purpose:** This document specifies a system that takes a single property (address or parcel ID) and determines whether that parcel can likely be legally subdivided into multiple lots, how many lots, what each would look like, and whether doing so is probably worth the cost — without a human pulling zoning code or ordering a survey first.
+**Purpose:** This document specifies a system that determines whether a residential parcel can likely be legally subdivided into multiple lots, how many lots, what each would look like, and whether doing so is probably worth the cost — without a human pulling zoning code or ordering a survey first.
 
-> **How to use this document:** Read the whole spec before writing code. Section 12 (Build Sequence) defines the intended order of work — start there for "what do I do first." Section 4 (Pilot Jurisdiction Selection) and Section 5.2 (zoning rule encoding) require a human decision/research step before Phase 1 can really be validated; if no jurisdiction has been chosen yet, surface that as the first question rather than picking one arbitrarily. Section 6.3's fixtures are the acceptance criteria for the most important component in the system — treat them as required, not optional, before moving to later phases.
+> **Strategy pivot (2026-06-28):** The original spec assumed a jurisdiction-specific automated pipeline (automated GIS fetch → ZoningDistrict DB lookup → engine). This was deprioritized in favor of a general-purpose approach: the user provides parcel geometry (file upload or map draw) and enters their zoning rules directly via a form. The tool works for any parcel in any US jurisdiction on day one, without per-jurisdiction data engineering. The ArcGIS adapter built in Phase 2 is retained as an optional convenience path (APN lookup) but is no longer required for core functionality. Sections 4, 5.1, 5.2, 9, and 12 have been updated to reflect this.
+
+> **How to use this document:** Read the whole spec before writing code. Section 12 (Build Sequence) defines the intended order of work. Section 6.3's fixtures are the acceptance criteria for the most important component — treat them as required before moving to later phases.
 
 ---
 
@@ -35,61 +37,56 @@ General zoning-feasibility checking (e.g. "can I build an ADU here", "is this co
 ### 2.1 High-level component diagram (textual)
 
 ```
-                              ┌─────────────────────────┐
-                              │   Client (web form)     │
-                              │  address/parcel input   │
-                              └────────────┬─────────────┘
-                                           │
-                                           ▼
-                              ┌─────────────────────────┐
-                              │   API Gateway / BFF      │
-                              │  (FastAPI or similar)    │
-                              └────────────┬─────────────┘
-                                           │
-                  ┌────────────────────────┼────────────────────────┐
-                  ▼                        ▼                        ▼
-       ┌────────────────────┐  ┌─────────────────────┐  ┌──────────────────────┐
-       │ Geocoding /         │  │ Parcel Resolution    │  │ Job Queue            │
-       │ Address Resolution  │  │ Service               │  │ (async report jobs)  │
-       └─────────┬───────────┘  └──────────┬────────────┘  └──────────┬────────────┘
-                  │                         │                          │
-                  └─────────────┬───────────┘                          │
-                                ▼                                      │
-                  ┌──────────────────────────────┐                     │
-                  │  Data Aggregation Layer       │ ◄───────────────────┘
-                  │  (pulls + normalizes raw data) │
-                  └──────────────┬─────────────────┘
-                                 │
-        ┌────────────┬──────────┼──────────┬─────────────┐
-        ▼            ▼          ▼          ▼             ▼
-   ┌─────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐ ┌────────────┐
-   │ Parcel  │ │ Zoning   │ │ Environ-│ │ Comps/  │ │ Utility /  │
-   │ Geometry│ │ Rules DB │ │ mental  │ │ Valuation│ │ Access     │
-   │ Store   │ │          │ │ Layers  │ │ Data    │ │ Layers     │
-   └─────────┘ └──────────┘ └─────────┘ └─────────┘ └────────────┘
-                                 │
-                                 ▼
-                  ┌──────────────────────────────┐
-                  │  Subdivision Feasibility       │
-                  │  Calculation Engine            │
-                  │  (pure logic, no I/O)          │
-                  └──────────────┬─────────────────┘
-                                 │
-                                 ▼
-                  ┌──────────────────────────────┐
-                  │  Scoring & Risk Engine         │
-                  └──────────────┬─────────────────┘
-                                 │
-                                 ▼
-                  ┌──────────────────────────────┐
-                  │  Report Generator              │
-                  │  (structured data → PDF/HTML)  │
-                  └──────────────┬─────────────────┘
-                                 │
-                                 ▼
-                  ┌──────────────────────────────┐
-                  │  Report Storage + Delivery     │
-                  └──────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Client (web form)                                    │
+│  • Upload parcel: GeoJSON / KML / Shapefile           │
+│  • OR draw parcel on map                              │
+│  • OR enter APN (optional convenience path)           │
+│  • Select road-facing edge (map interaction)          │
+│  • Enter zoning rules (min lot size, setbacks, etc.)  │
+└───────────────────────┬──────────────────────────────┘
+                        │
+                        ▼
+         ┌──────────────────────────┐
+         │  FastAPI — app/api/       │
+         │  POST /v1/parse/{format}  │  ← returns polygon + edge list
+         │  POST /v1/feasibility     │  ← runs engine, returns result
+         └──────────┬───────────────┘
+                    │
+       ┌────────────┼────────────┐
+       ▼            ▼            ▼
+┌──────────┐  ┌──────────┐  ┌──────────────────┐
+│ Parsers  │  │ Engine   │  │ Projection       │
+│ geojson  │  │ inputs.py│  │ WGS84 → feet     │
+│ kml      │  │ (bridge) │  │ (auto-UTM)       │
+│ shapefile│  └──────────┘  └──────────────────┘
+└──────────┘
+                    │
+                    ▼
+     ┌──────────────────────────────┐
+     │  Calculation Engine           │
+     │  (pure logic, no I/O)         │
+     └──────────────┬───────────────┘
+                    │
+                    ▼
+     ┌──────────────────────────────┐
+     │  Scoring & Risk Engine        │
+     └──────────────┬───────────────┘
+                    │
+                    ▼
+     ┌──────────────────────────────┐
+     │  Report Generator             │
+     │  (structured data → HTML/PDF) │
+     └──────────────┬───────────────┘
+                    │
+                    ▼
+     ┌──────────────────────────────┐
+     │  Report Storage               │
+     │  (reports table — JSONB)      │
+     └──────────────────────────────┘
+
+Optional path (APN lookup):
+  APN → ArcGISParcelAdapter → normalizer → same parser/projection flow above
 ```
 
 ### 2.2 Component responsibilities
@@ -273,58 +270,64 @@ SubdivisionScenario 1───1 FeasibilityReport (as primary_scenario)
 
 ---
 
-## 4. Pilot Jurisdiction Selection
+## 4. Pilot Jurisdiction (Reference Only)
 
-Before writing any code, pick **one specific county or city** to build against. This is a real decision the engineer needs to make, not a placeholder — but the criteria for choosing well are specified here so Claude Code can evaluate candidates if asked to help decide.
+**Updated 2026-06-28:** The tool no longer requires a pre-configured pilot jurisdiction for core functionality. Parcel geometry and zoning rules are user-provided. The jurisdiction research below (City of Kyle, TX) is retained as a reference and is used for:
+- Example inputs when testing the engine with realistic values
+- The optional APN-lookup path if activated for Hays County / Kyle TX
 
-### 4.1 Selection criteria, in priority order
+See [docs/pilot-jurisdiction.md](../pilot-jurisdiction.md) for the full Kyle TX zoning data (dimensional standards, GIS URLs, field mapping).
 
-1. **Has a public, parcel-level GIS feed with an open API or downloadable shapefile/GeoJSON** (not just a clunky web map with no data export). Most US counties run Esri ArcGIS Online or ArcGIS Server for their GIS; many expose a queryable REST endpoint (`.../MapServer/0/query`) even if not advertised. Check for this first — it's a hard requirement.
-2. **Zoning ordinance is a manageable size and complexity.** Prefer a jurisdiction with a small number of residential zoning districts (5–15) over one with a sprawling code with dozens of overlay districts. This directly determines how much manual encoding work Section 5.2 requires.
-3. **Active minor-subdivision / lot-split activity.** Growing exurban and suburban counties (especially in TX, FL, NC, GA, AZ, ID, UT, TN) tend to have more real lot-split activity than slow-growth rural counties or built-out urban cores. More activity = more comps for the valuation piece and a more obviously real market.
-4. **"Minor subdivision" or "administrative lot split" is a defined, distinct process from full platting.** Many jurisdictions have a fast-track process (e.g., splitting into ≤3 or ≤4 lots without going through full planning commission review) — this is the exact product wedge, so a jurisdiction that has this distinction codified is ideal.
-5. **FEMA flood data, soils data (USDA SSURGO), and wetlands data (USFWS NWI) all have coverage** — true almost everywhere in the continental US, low risk, but verify for the chosen county.
+If the optional APN-lookup path is expanded to additional jurisdictions in the future, the relevant criteria for selecting well-suited jurisdictions are:
+1. Public parcel-level GIS with an ArcGIS REST endpoint (queryable by APN)
+2. Zoning ordinance with a manageable number of residential districts (5–15)
+3. Active minor-subdivision / lot-split market (growing exurban/suburban areas)
+4. Defined "minor subdivision" administrative fast-track process
 
-### 4.2 Recommended approach
-
-Have a human (not Claude Code) shortlist 3–5 candidate counties against criteria #1 and #2 by manually poking at each county's GIS portal and zoning code before committing. This is worth a day of manual research up front — picking a jurisdiction with messy or inaccessible GIS data will cost far more than a day later. Once chosen, hardcode that jurisdiction as the only supported one in v1; do not build a jurisdiction-selector UI for a system that only supports one.
+These are now nice-to-haves, not blockers for shipping.
 
 ---
 
 ## 5. Data Sources & Ingestion
 
-### 5.1 Parcel geometry & assessor data
+### 5.1 Parcel geometry — user-provided (primary) or APN lookup (optional)
 
-**Source:** County GIS REST API (most commonly Esri ArcGIS REST). Query pattern:
+**Primary path:** The user provides parcel geometry directly. Supported input formats:
 
-```
-GET {county_gis_base_url}/MapServer/{layer_id}/query
-  ?where=APN='{apn}'
-  &outFields=*
-  &f=geojson
-```
+| Format | Module | Notes |
+|---|---|---|
+| GeoJSON | `app/parsers/geojson.py` | FeatureCollection, Feature, or bare Polygon |
+| KML | `app/parsers/kml.py` | Google Maps/Earth export |
+| Shapefile | `app/parsers/shapefile.py` | ZIP containing .shp, .shx, .dbf |
+| Draw on map | Frontend (Phase 6) | User draws polygon, sends as GeoJSON |
 
-If the county does not expose a clean REST API, fall back to:
-- Downloadable shapefile/GeoJSON bulk export (re-downloaded and re-imported into PostGIS on a schedule, e.g. weekly) — most counties publish a full parcel layer export even if they don't have a live query API.
-- Regrid (formerly LoveLand Technologies) as a paid third-party aggregator that normalizes parcel data across ~3,100 US counties into one consistent schema/API. **Recommended as the pragmatic default for v1** even though it has a per-parcel cost, because it eliminates the need to write a bespoke adapter for the county's idiosyncratic GIS setup. Evaluate Regrid's API and pricing before deciding whether to build a direct-to-county adapter instead.
+All parsers return a Shapely `Polygon` in EPSG:4326 (WGS84). `app/parsers/projection.py` then:
+1. Detects the appropriate UTM zone from the parcel centroid
+2. Projects to UTM (meters)
+3. Scales to US survey feet
 
-**Normalize into the `Parcel` table fields specified in Section 3.3.** Critically: always compute `area_sqft` from the actual geometry (via PostGIS `ST_Area` on a geometry transformed to an appropriate projected CRS — do NOT use a geographic/lat-lon CRS for area calculations, results will be wrong) rather than trusting a county-reported area field, which is sometimes stale or rounded. Use the county-reported value only as a sanity-check cross-reference, and flag a data-quality warning if it differs from the computed value by more than ~5%.
+Area is computed from the projected polygon. No county GIS query or external API call is needed.
 
-### 5.2 Zoning rules — hand-encoded, not scraped
+**Optional path (APN lookup):** `app/adapters/arcgis.py` fetches geometry from any county running ArcGIS REST, parameterized by a `JurisdictionConfig` built from a `Jurisdiction` DB row. This path is available when the user enters an APN instead of uploading a file. It produces the same WGS84 polygon as a file upload — the rest of the pipeline is identical. Adding a new county to the APN-lookup path requires inserting a `Jurisdiction` DB row (via a seed script), not writing new Python code.
 
-This is the most important data-engineering decision in this spec, so it gets its own subsection.
+### 5.2 Zoning rules — user-entered form fields (primary)
 
-**Do not attempt to automatically parse the zoning ordinance text into structured rules for v1.** Municipal zoning codes are inconsistent, full of cross-references, exceptions, and footnotes, and getting this wrong produces a feasibility report that's confidently incorrect — the worst possible failure mode for a product whose entire value proposition is "trustworthy automated screening." Several funded competitors (see prior market research) are actively working on NLP-based zoning code parsing and still need human review loops.
+**Updated 2026-06-28:** Zoning rules are no longer pre-encoded into a database. The user enters them directly into a web form when submitting a feasibility request.
 
-**Instead, for the pilot jurisdiction:**
-1. A human reads the zoning ordinance directly (county/city zoning code, usually published on Municode, American Legal Publishing, or the jurisdiction's own site).
-2. For each residential zoning district relevant to single-family/rural-residential subdivision, manually populate one row in the `ZoningDistrict` table (Section 3.2) with the dimensional standards.
-3. Every row must record `source_ordinance_section` (the specific code citation) and `last_verified_date`/`last_verified_by`, so any future automated re-verification or human audit has a paper trail.
-4. Build a lightweight internal admin view (even a simple read/write table editor — does not need to be polished) so this data can be corrected as errors are found. Treat this table as a living dataset that needs periodic re-verification, not a one-time import.
+Required fields (validated by `app/api/schemas.py → ZoningRulesRequest`):
+- `min_lot_area_sqft` — minimum legal lot size for the district
+- `min_lot_width_ft` — minimum frontage/width
+- `setback_front_ft`, `setback_side_ft`, `setback_rear_ft`
+- `minor_subdivision_threshold` — max lots for administrative (fast-track) process
+- `allows_flag_lots` — whether the district explicitly permits flag lots
+- `requires_public_road_frontage` (default: true)
 
-This means: **the system's accuracy is bounded by the quality of this manual encoding**, not by any ML/NLP component. This is a deliberate and correct trade-off for v1. Scaling to more jurisdictions later means scaling this manual encoding process (or building tooling to assist a human doing it faster — e.g. an LLM-assisted first-pass extraction that a human then verifies line-by-line against the source ordinance — but always with mandatory human verification before a `ZoningDistrict` row is marked usable in production).
+The user looks these up from their city or county's zoning code (typically a 2-minute search on the jurisdiction's website) and enters them once per report. This approach:
+- Works for any jurisdiction in the US without pre-configuration
+- Puts the sourcing responsibility on the user, who can cite the exact ordinance section
+- Eliminates the per-jurisdiction encoding maintenance burden and the risk of stale DB data
 
-**Add a `verified: bool` field-level concept** — actually implement this as a per-district `last_verified_date` plus a hard rule in application code: a `ZoningDistrict` row with no `last_verified_date` set, or with one older than some staleness threshold (e.g., 18 months), should not be used to generate a report; the report generation should fail loudly rather than silently use stale/unverified zoning data.
+**Optional path (ZoningDistrict DB):** The `ZoningDistrict` table and `app/adapters/zoning_mapper.py` remain in the codebase and support the APN-lookup path. When a parcel is fetched by APN, the adapter resolves its `zoning_code_raw` to a `ZoningDistrict` row in the DB, which can pre-fill the zoning form. This is a convenience feature, not a requirement. All `ZoningDistrict` rows still require `source_ordinance_section` and `last_verified_date` citations before use.
 
 ### 5.3 Zoning district assignment per parcel
 
@@ -531,38 +534,41 @@ Suggested approach: generate the report as structured HTML (server-rendered temp
 
 ## 9. API Design
 
-### 9.1 Core endpoints
+### 9.1 Core endpoints (as built)
 
 ```
-POST   /v1/reports
-  Body: { "address": "123 Main St, City, ST" }  OR  { "apn": "..." }
-  Response: { "report_id": "...", "status": "PENDING" }
+GET    /health
+  Response: { "status": "ok", "version": "0.3.0" }
 
-GET    /v1/reports/{report_id}
-  Response: full FeasibilityReport object (status + results once COMPLETE)
+POST   /v1/parse/geojson
+  Body: GeoJSON Polygon, Feature, or FeatureCollection
+  Response: { "polygon": {...}, "edges": [{index, length_ft}], "area_sqft", "area_acres" }
 
-GET    /v1/reports/{report_id}/pdf
-  Response: redirect to / stream the generated PDF
+POST   /v1/parse/kml
+  Body: multipart file upload (.kml)
+  Response: same ParseResponse
 
-GET    /v1/parcels/lookup?address=...
-  Response: parcel match candidates (for disambiguation before committing to a report — useful when geocoding returns
-  an address that doesn't cleanly map to exactly one parcel, e.g. unit-level addresses or new construction not yet in
-  assessor records)
+POST   /v1/parse/shapefile
+  Body: multipart file upload (.zip containing .shp + sidecars)
+  Response: same ParseResponse
 
-GET    /v1/jurisdictions
-  Response: list of currently supported jurisdictions (will be a list of one for v1 — but build the endpoint now so
-  the client doesn't need to change when jurisdiction #2 is added)
+POST   /v1/feasibility
+  Body: { geometry (GeoJSON), frontage_edge_index (int), zoning (ZoningRulesRequest) }
+  Response: { report_id, status, max_theoretical_lots, scenarios[], disqualifying_flags[], data_gap }
+
+GET    /v1/feasibility/{report_id}
+  Response: same FeasibilityResponse (once report persistence is activated in Phase 4)
 ```
 
-### 9.2 Job lifecycle
+### 9.2 Request lifecycle
 
-`POST /v1/reports` should return immediately after creating a `FeasibilityReport` row in `PENDING` status and enqueuing an async job — it must NOT block on the full data-aggregation + calculation pipeline (Section 5–7), which can take long enough to make a synchronous HTTP request a poor experience. Use a task queue (Celery with Redis/RabbitMQ as broker, or a simpler alternative like a Postgres-backed job queue if avoiding extra infra — see Section 10 for recommendation) to run the pipeline asynchronously, updating `FeasibilityReport.status` through `DATA_GATHERING → CALCULATING → COMPLETE` (or `FAILED` with `error_detail` populated).
+`POST /v1/feasibility` is synchronous in the current implementation — it runs the engine inline and returns within milliseconds (the engine has no I/O). Report persistence to the `reports` table is the only async concern; it is deferred until Phase 4 (Postgres setup). No task queue is required for the core engine path.
 
-The client polls `GET /v1/reports/{report_id}` or — preferable for v1 simplicity — the system sends an email/webhook when complete, since this is a "come back later for your report" product, not a live interactive tool.
+A task queue (Celery + Redis) would be appropriate if environmental constraint adapters (Phase 4+) or external data fetches (APN-lookup path) are added to the report pipeline, since those introduce variable latency from external APIs. That decision should be deferred until the latency profile of the full pipeline is known.
 
-### 9.3 Idempotency & caching
+### 9.3 Idempotency
 
-If a report is requested for the same `apn` within some recency window (e.g. 30 days) and underlying data hasn't materially changed, consider returning the cached prior report rather than re-running the full pipeline — this both saves cost (external API calls, comps data) and ensures consistent answers for the same input in a short window. Make this an explicit, configurable policy rather than an accidental side effect of caching at the data-layer level.
+User-submitted geometry inputs have no natural key for deduplication. For now, every `POST /v1/feasibility` creates a new report row. Future: allow a client-supplied `idempotency_key` to return a cached result for identical inputs within a time window.
 
 ---
 
@@ -613,39 +619,39 @@ The `/engine` directory's import isolation (no dependency on `/models` or `/adap
 
 ---
 
-## 12. Build Sequence (Recommended Phases)
+## 12. Build Sequence (Revised 2026-06-28)
 
 This sequencing exists to make sure the hardest-to-validate, most central piece of the system (the calculation engine) is built and proven correct before time is spent on peripheral pieces.
 
-**Phase 0 — Jurisdiction selection & zoning data encoding (no code).**
-Pick the pilot jurisdiction (Section 4). Manually encode every relevant `ZoningDistrict` row by reading the actual ordinance (Section 5.2). This is a research/data task, not a coding task, and should be largely finished before Phase 2 begins — the engine can't be meaningfully tested without real rule data to test against.
+**Phase 0 — Research & reference data (✅ complete).**
+Jurisdiction research for Kyle TX (City of Kyle zoning districts, GIS sources). Retained as reference data for testing realistic inputs. No longer a blocking prerequisite — the engine can be tested with any synthetic inputs.
 
-**Phase 1 — Data models & core engine, fixture-driven.**
-Build the SQLAlchemy models (Section 3). Build the calculation engine (Section 6) against hand-written test fixtures (Section 6.3) only — no real data adapters yet. Get all 7 required fixture cases passing. This phase should produce a fully unit-tested, deterministic engine with zero external dependencies.
+**Phase 1 — Data models & core engine, fixture-driven (✅ complete).**
+SQLAlchemy models. Calculation engine against hand-written test fixtures (Section 6.3). 88 tests passing. Fully unit-tested, zero external dependencies.
 
-**Phase 2 — Parcel data adapter for the pilot jurisdiction.**
-Build the adapter(s) from Section 5.1 to pull real parcel geometry/assessor data for the chosen jurisdiction into the `Parcel` table. Validate by spot-checking 10-20 real known parcels against the county's own GIS web map to confirm geometry and attributes match.
+**Phase 2 — Generic ArcGIS parcel adapter (✅ complete, optional path).**
+`ArcGISParcelAdapter` parameterized by `JurisdictionConfig` from a `Jurisdiction` DB row. Alembic migration. Kyle TX seed script. 32 adapter tests. This is the APN-lookup convenience path, not required for core functionality.
 
-**Phase 3 — Wire the engine to real parcels.**
-Connect Phase 2's real parcel data + Phase 0's real zoning rules through the engine built in Phase 1. At this point the system should produce correct `SubdivisionScenario` results for real parcels in the pilot jurisdiction, without yet having environmental constraints, scoring, or report rendering. Manually validate against a handful of real-world cases where the human building this already has intuition about the right answer (e.g., a parcel they know was actually recently split, or one they know clearly couldn't be).
+**Phase 3 — Geometry input layer + FastAPI (✅ complete).**
+Parsers for GeoJSON, KML, Shapefile. Auto-UTM projection to feet. `app/engine/inputs.py` bridge. FastAPI app with `/v1/parse/*` and `/v1/feasibility`. 132 tests total, all passing. API works without a database.
 
-**Phase 4 — Environmental/physical constraint layers.**
-Add the Section 5.4 adapters (FEMA, NWI, SSURGO, slope) and wire `EnvironmentalConstraint` generation + the engine's Step 4 constraint-checking into the pipeline.
+**Phase 4 — Report persistence.**
+Activate the `reports` table (migration `b2a3f91dc017` already written). Wire `POST /v1/feasibility` to store inputs + result. Requires PostgreSQL to be running (`docker compose up -d && alembic upgrade head`).
 
-**Phase 5 — Scoring & risk model.**
-Implement Section 7 against the now-complete feasibility pipeline output.
+**Phase 5 — Report rendering.**
+HTML template (Jinja2) + SVG lot diagram from engine geometry output. PDF export (Playwright). `GET /v1/feasibility/{id}/pdf`.
 
-**Phase 6 — Report generation.**
-Implement Section 8 — HTML template, SVG diagram generation, PDF export.
+**Phase 6 — Web UI.**
+Map (OpenLayers) for parcel draw + edge selection. File upload UI. Zoning rules form. Wires to `/v1/parse/*` (preview) → `/v1/feasibility` (submit).
 
-**Phase 7 — API & async job orchestration.**
-Implement Section 9 — FastAPI endpoints, Celery task wiring, status lifecycle.
+**Phase 7 — Scoring & risk model.**
+Section 7 scoring implementation against the complete engine output.
 
 **Phase 8 — Comps/valuation layer.**
-Add Section 5.6/7.3 — intentionally last, because it's the least structurally certain part of the system and the rest of the product is fully functional (with financial sub-score simply omitted or flagged as "pending data") without it.
+Section 5.6/7.3 — financial quick-screen. Intentionally last; the rest of the product is complete without it.
 
 **Phase 9 — Pilot validation.**
-Run the complete pipeline against a meaningful sample (50-100+) of real parcels in the pilot jurisdiction, including some with known real-world outcomes if any can be identified (parcels that did or didn't successfully subdivide recently, per county records), and manually audit a sample of reports for correctness before considering the system validated.
+Run against 50–100 real parcels (any jurisdiction; users can provide their own zoning inputs). Manually audit a sample of reports for correctness.
 
 ---
 

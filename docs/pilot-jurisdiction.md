@@ -1,7 +1,9 @@
-# Pilot Jurisdiction: City of Kyle, TX
+# Reference: City of Kyle, TX Zoning Data
 
 **Decision date:** 2026-06-28  
-**Status:** Phase 0 complete — zoning data encoded below; Phase 2 (parcel adapter) ready to start
+**Status:** Reference document — zoning dimensional standards for use as example inputs or for the optional APN-lookup path. No longer a required configuration step; the primary tool flow accepts user-entered zoning rules directly.
+
+> **Architecture note (2026-06-28):** The tool was pivoted from a jurisdiction-specific automated pipeline to a general-purpose user-input model. The data below remains accurate and useful as: (1) ready-made example zoning inputs for testing the engine with real-world values; (2) the seed data for `scripts/seed_hays_county.py` if the optional APN-lookup path is activated for Kyle/Hays County.
 
 ---
 

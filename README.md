@@ -2,47 +2,47 @@
 
 Automated screening tool that determines whether a residential parcel can be legally subdivided, how many lots it could yield, what each would look like, and whether doing so is financially worth pursuing — without a surveyor or land-use attorney involved up front.
 
-**Status:** Phase 2 complete. Engine + data models + parcel adapter built. Pilot jurisdiction: City of Kyle, TX.
+**Status:** Phase 3 complete. Engine + geometry parsers + FastAPI endpoints built and tested. Works for any parcel in any US jurisdiction.
 
 ---
 
 ## What it does
 
-Given a parcel (by APN or address), the system:
+The user provides a parcel and zoning rules. The system:
 
-1. Fetches parcel geometry and assessor data from the county GIS
-2. Looks up the applicable zoning district's dimensional standards
-3. Runs a pure-function feasibility engine that tests geometric split strategies (side-by-side strips, flag lots) against minimum lot size, frontage, and setback requirements
-4. Applies environmental constraints (flood zone, wetlands, slope) per resulting lot
+1. Accepts parcel geometry from a file upload (GeoJSON, KML, Shapefile), a map draw, or an optional APN lookup
+2. Projects the geometry from WGS84 to local feet (auto-UTM)
+3. Lets the user identify which edge faces the road
+4. Runs a pure-function feasibility engine that tests geometric split strategies (side-by-side strips, flag lots) against the user-entered zoning rules (minimum lot size, frontage, setbacks)
 5. Returns ranked subdivision scenarios with risk flags and a review tier (administrative minor vs. planning commission)
 
-Output is a `SubdivisionFeasibilityResult` — structured data suitable for rendering into a report (Phase 6).
+Output is a `FeasibilityResponse` — structured data ready for report rendering (Phase 5).
 
 ---
 
 ## Local setup
 
-**Prerequisites:** Python 3.12+, Docker (for PostgreSQL+PostGIS)
+**Prerequisites:** Python 3.12+
 
 ```bash
-# Clone and create venv
 git clone https://github.com/hartc17/lot-split-feasibility
 cd lot-split-feasibility
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Start database
-docker compose up -d
-
-# Run migrations
-alembic upgrade head
-
-# Seed pilot jurisdiction (City of Kyle, TX)
-python scripts/seed_hays_county.py
-
 # Run tests
 pytest
+
+# Start API
+uvicorn app.api.app:app --reload
+```
+
+PostgreSQL + Docker are only needed once the report persistence feature is activated (Phase 4+):
+
+```bash
+docker compose up -d
+alembic upgrade head
 ```
 
 ---
@@ -53,85 +53,111 @@ pytest
 lot-split-feasibility/
 ├── app/
 │   ├── engine/              # Pure feasibility calculation — zero I/O, zero DB
-│   │   ├── types.py         # Input/output dataclasses (ParcelGeometryInput, etc.)
+│   │   ├── types.py         # Input/output dataclasses
 │   │   ├── geometry.py      # Shapely helpers
 │   │   ├── eligibility.py   # Fast-fail checks (area, structure conflicts)
 │   │   ├── strategies/      # Split strategies: strip, flag lot
 │   │   ├── constraints.py   # Per-lot environmental constraint filtering
+│   │   ├── inputs.py        # Bridge: parsed geometry + user form → engine types
 │   │   └── calculator.py    # Main entry point
-│   ├── adapters/            # Data fetching layer — DB-facing, jurisdiction-generic
-│   │   ├── base.py          # ParcelRecord, JurisdictionConfig, FieldMapping
-│   │   ├── arcgis.py        # Generic ArcGIS REST FeatureServer adapter
-│   │   ├── normalizer.py    # GeoJSON → Parcel fields, geodetic area calculation
-│   │   ├── zoning_mapper.py # Raw GIS zoning string → ZoningDistrict.id
+│   ├── parsers/             # File format parsers — WGS84 Polygon out, no DB
+│   │   ├── geojson.py       # GeoJSON (FeatureCollection, Feature, bare Polygon)
+│   │   ├── kml.py           # KML (Google Maps/Earth export)
+│   │   ├── shapefile.py     # Shapefile zip (.shp + sidecar files)
+│   │   └── projection.py    # WGS84 → local feet (auto-UTM zone detection)
+│   ├── api/                 # FastAPI app
+│   │   ├── app.py           # App + router registration
+│   │   ├── schemas.py       # Pydantic request/response models
+│   │   └── routes/
+│   │       ├── parse.py     # POST /v1/parse/{geojson,kml,shapefile}
+│   │       └── feasibility.py  # POST /v1/feasibility, GET /v1/feasibility/{id}
+│   ├── adapters/            # Optional: ArcGIS parcel fetch (convenience path)
+│   │   ├── base.py          # ParcelRecord, JurisdictionConfig
+│   │   ├── arcgis.py        # Generic ArcGIS REST adapter (any county)
+│   │   ├── normalizer.py    # GeoJSON → Parcel fields, geodetic area
+│   │   ├── zoning_mapper.py # Raw GIS code → ZoningDistrict (DB-backed)
 │   │   └── ingestion.py     # Orchestrates fetch + normalize + DB upsert
 │   └── models/              # SQLAlchemy ORM models (PostgreSQL + PostGIS)
-│       ├── jurisdiction.py  # Includes GIS adapter config (gis_field_map, etc.)
+│       ├── report.py        # Primary model: stores geometry + rules + result
+│       ├── jurisdiction.py  # Optional: multi-jurisdiction config
 │       ├── zoning_district.py
 │       ├── parcel.py
 │       ├── environmental_constraint.py
 │       ├── subdivision_scenario.py
 │       └── feasibility_report.py
 ├── migrations/              # Alembic migrations
-│   └── versions/
-│       └── a1f1873cc084_initial_schema.py
 ├── tests/
-│   ├── engine/              # Unit tests — no DB, no network (88 total, all passing)
+│   ├── engine/              # Unit tests — no DB, no network (100+ tests, all passing)
+│   ├── parsers/             # Parser + projection tests — no DB, no network
+│   ├── api/                 # Endpoint tests — DB mocked
 │   ├── adapters/            # Adapter tests — HTTP mocked, no DB
-│   ├── models/              # Model structure tests via sqlalchemy.inspect
+│   ├── models/              # Model structure tests
 │   └── fixtures/            # Synthetic parcel/zoning fixtures (spec §6.3)
 ├── scripts/
-│   ├── seed_hays_county.py  # One-time DB seed for Kyle TX jurisdiction row
-│   └── validate_parcels.py  # CLI spot-check of real APNs against county GIS
+│   ├── seed_hays_county.py  # Optional: seed Kyle TX jurisdiction for APN-lookup path
+│   └── validate_parcels.py  # Optional: CLI spot-check of real APNs
 ├── docs/
-│   ├── architecture.md      # System + engine + ER diagrams (Mermaid)
-│   ├── pilot-jurisdiction.md # Kyle TX GIS sources, zoning districts, open items
+│   ├── architecture.md      # System + engine diagrams (Mermaid)
+│   ├── pilot-jurisdiction.md # Kyle TX zoning reference data
 │   └── superpowers/plans/   # Phase plan documents
-├── docker-compose.yml       # PostgreSQL 16 + PostGIS 3.4
+├── docker-compose.yml       # PostgreSQL 16 + PostGIS 3.4 (for persistence)
 ├── pyproject.toml
 └── alembic.ini
 ```
 
 ---
 
-## Architecture
+## API
 
-See [docs/architecture.md](docs/architecture.md) for full Mermaid diagrams.
+Start the server: `uvicorn app.api.app:app --reload`
 
-### Key design decisions
+### Parse endpoints — return polygon + labeled edges, no DB write
 
-**Engine isolation.** `app/engine/` is a pure function — it has zero imports from `app/models`, `app/adapters`, SQLAlchemy, or any I/O module. This is enforced at test time by an AST scanner (`tests/engine/test_engine_isolation.py`). The engine takes plain Python dataclasses in, returns plain Python dataclasses out. It can be unit-tested without a database or network connection.
+```
+POST /v1/parse/geojson     JSON body: GeoJSON Polygon/Feature/FeatureCollection
+POST /v1/parse/kml         Multipart file upload (.kml)
+POST /v1/parse/shapefile   Multipart file upload (.zip containing .shp + sidecars)
 
-**DB-driven jurisdiction config.** The `Jurisdiction` table stores all county-specific GIS adapter configuration (`gis_feature_server_url`, `gis_field_map`, `gis_zoning_code_map`). Adding a new jurisdiction means inserting a DB row via a seed script — zero new Python files in `app/adapters/`.
+Response:
+{
+  "polygon": { ...GeoJSON Polygon... },
+  "edges": [ { "index": 0, "length_ft": 82.3 }, ... ],
+  "area_sqft": 9840.0,
+  "area_acres": 0.226
+}
+```
 
-**Generic ArcGIS adapter.** A single `ArcGISParcelAdapter` class works for any county running Esri ArcGIS Server. ~3,100 US counties use ArcGIS; the adapter is parameterized by a `JurisdictionConfig` built from the `Jurisdiction` DB record at runtime.
+The frontend uses the `edges` list to render each edge with its length, letting the user click the road-facing side before submitting.
 
-**Hand-encoded zoning rules.** Per the spec, zoning dimensional standards are manually entered into `ZoningDistrict` rows — not scraped or inferred. Every row requires a `source_ordinance_section` citation and `last_verified_date` before it can be used in production.
+### Feasibility endpoint
 
----
+```
+POST /v1/feasibility
+{
+  "geometry": { ...GeoJSON Polygon... },
+  "frontage_edge_index": 0,
+  "zoning": {
+    "district_code": "R-1-2",
+    "min_lot_area_sqft": 6825,
+    "min_lot_width_ft": 65,
+    "setback_front_ft": 25,
+    "setback_side_ft": 8,
+    "setback_rear_ft": 15,
+    "minor_subdivision_threshold": 4,
+    "allows_flag_lots": false
+  }
+}
 
-## Pilot jurisdiction: City of Kyle, TX
-
-Kyle is within Hays County, TX. Texas counties cannot exercise general zoning authority — only incorporated cities can. Kyle has a complete zoning ordinance (Chapter 53) with 5 residential districts (R-1-1, R-1-2, R-1-3, UE, A) and a 4-lot minor subdivision threshold (Texas LGC §212.0065).
-
-See [docs/pilot-jurisdiction.md](docs/pilot-jurisdiction.md) for GIS sources, dimensional standards, and open items before Phase 3.
-
----
-
-## Build phases
-
-| Phase | Status | Description |
-|---|---|---|
-| 0 | ✅ Complete | Jurisdiction selection + zoning data research |
-| 1 | ✅ Complete | Core feasibility engine + SQLAlchemy models, 88 tests passing |
-| 2 | ✅ Complete | Generic ArcGIS parcel adapter, Alembic migrations, DB seed |
-| 3 | Pending | Wire real parcels through the engine |
-| 4 | Pending | Environmental constraint adapters (FEMA, NWI, SSURGO) |
-| 5 | Pending | Scoring & risk model |
-| 6 | Pending | Report generation (HTML + PDF) |
-| 7 | Pending | FastAPI endpoints + async job queue |
-| 8 | Pending | Comps/valuation layer |
-| 9 | Pending | Pilot validation (50–100 real parcels) |
+Response:
+{
+  "report_id": null,
+  "status": "complete",
+  "max_theoretical_lots": 2,
+  "scenarios": [ ... ],
+  "disqualifying_flags": [],
+  "data_gap": false
+}
+```
 
 ---
 
@@ -158,8 +184,42 @@ zoning = ZoningRulesInput(
     minor_subdivision_threshold=4,
 )
 result = calculate_subdivision_scenarios(parcel, zoning, constraints=[], existing_structures=[])
-print(result.max_theoretical_lots)   # → 1 (10,000 sqft parcel / 6,825 min = 1)
+print(result.max_theoretical_lots)
 ```
+
+---
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for full Mermaid diagrams.
+
+### Key design decisions
+
+**Engine isolation.** `app/engine/` is a pure function — zero imports from `app/models`, `app/adapters`, SQLAlchemy, or any I/O module. Enforced at test time by an AST scanner (`tests/engine/test_engine_isolation.py`). Takes plain Python dataclasses in, returns plain Python dataclasses out. Unit-testable without a database or network connection.
+
+**User-provided geometry and rules.** The primary flow does not require county GIS integration or a jurisdiction database. The user supplies parcel geometry (upload or draw) and zoning rules (web form). This makes the tool work for any parcel in any US jurisdiction on day one.
+
+**Auto-UTM projection.** Uploaded geometry arrives in WGS84. `app/parsers/projection.py` auto-detects the UTM zone from the parcel centroid, projects to meters, and scales to US feet — no per-jurisdiction CRS configuration required.
+
+**User-selected frontage edge.** After parsing, the API returns each polygon edge with its length in feet. The frontend displays these so the user can click the road-facing side. No road centerline dataset or spatial join required.
+
+**Optional APN-lookup path.** The Phase 2 ArcGIS adapter (`app/adapters/`) remains available as a convenience path: given an APN, it fetches geometry from a county GIS and returns it in the same format as a file upload. Adding a new county that runs ArcGIS requires only a DB row, not new Python code.
+
+---
+
+## Build phases
+
+| Phase | Status | Description |
+|---|---|---|
+| 0 | ✅ Complete | Jurisdiction research + zoning data (Kyle TX reference) |
+| 1 | ✅ Complete | Core feasibility engine + SQLAlchemy models, 88 tests passing |
+| 2 | ✅ Complete | Generic ArcGIS parcel adapter (optional path), Alembic migrations |
+| 3 | ✅ Complete | Geometry parsers (GeoJSON/KML/SHP), projection, FastAPI endpoints, 132 tests |
+| 4 | Pending | Report persistence (reports table → Postgres) |
+| 5 | Pending | Report rendering (HTML + PDF) |
+| 6 | Pending | Web UI — map, file upload, edge selection, zoning form |
+| 7 | Pending | Scoring + financial quick-screen |
+| 8 | Pending | Pilot validation (50–100 real parcels) |
 
 ---
 
@@ -168,12 +228,14 @@ print(result.max_theoretical_lots)   # → 1 (10,000 sqft parcel / 6,825 min = 1
 | Layer | Technology |
 |---|---|
 | Language | Python 3.12 |
-| Geometry | Shapely 2.x + pyproj (geodetic area via Geod) |
+| Geometry | Shapely 2.x + pyproj (geodetic area + UTM projection) |
+| File parsing | fastkml (KML), fiona (Shapefile), built-in json (GeoJSON) |
+| API | FastAPI + uvicorn |
+| Request validation | Pydantic v2 |
 | ORM | SQLAlchemy 2.x + GeoAlchemy2 |
-| Database | PostgreSQL 16 + PostGIS 3.4 |
+| Database | PostgreSQL 16 + PostGIS 3.4 (persistence, pending) |
 | Migrations | Alembic |
-| HTTP client | requests |
-| Testing | pytest + pytest-mock |
-| Future: API | FastAPI |
-| Future: Queue | Celery + Redis |
+| HTTP client | requests (APN-lookup path only) |
+| Testing | pytest + pytest-mock + httpx2 (TestClient) |
 | Future: Reports | Jinja2 + Playwright |
+| Future: UI | OpenLayers (map + edge selection) |
