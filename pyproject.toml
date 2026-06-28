@@ -19,6 +19,7 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
     "uvicorn[standard]>=0.29",
+    "aiofiles>=23.0",
     "python-multipart>=0.0.9",
     "fastkml>=1.0",
     "fiona>=1.9",

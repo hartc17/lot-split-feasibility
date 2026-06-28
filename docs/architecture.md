@@ -6,7 +6,7 @@
 flowchart TB
     subgraph Input["Input Layer — user provides geometry + rules"]
         UPLOAD["File Upload\n(GeoJSON / KML / Shapefile zip)"]
-        DRAW["Draw on Map\n(frontend — Phase 6)"]
+        DRAW["Draw on Map\n(OpenLayers — app/static/)"]
         APN["Address / APN Lookup\n(optional convenience path)"]
         FORM["Zoning Rules Form\n(min lot size, setbacks, etc.)"]
     end

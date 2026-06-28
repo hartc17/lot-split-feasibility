@@ -34,8 +34,9 @@ pip install -e ".[dev]"
 # Run tests
 pytest
 
-# Start API
+# Start server (API + UI)
 uvicorn app.api.app:app --reload
+# Open http://localhost:8000
 ```
 
 PostgreSQL + Docker are only needed once the report persistence feature is activated (Phase 4+):
@@ -66,11 +67,15 @@ lot-split-feasibility/
 │   │   ├── shapefile.py     # Shapefile zip (.shp + sidecar files)
 │   │   └── projection.py    # WGS84 → local feet (auto-UTM zone detection)
 │   ├── api/                 # FastAPI app
-│   │   ├── app.py           # App + router registration
+│   │   ├── app.py           # App + router registration + static file serving
 │   │   ├── schemas.py       # Pydantic request/response models
 │   │   └── routes/
 │   │       ├── parse.py     # POST /v1/parse/{geojson,kml,shapefile}
 │   │       └── feasibility.py  # POST /v1/feasibility, GET /v1/feasibility/{id}
+│   ├── static/              # Web UI (served at / and /static/)
+│   │   ├── index.html       # Single-page app shell
+│   │   ├── app.js           # OpenLayers map + API interaction
+│   │   └── style.css        # UI styles
 │   ├── adapters/            # Optional: ArcGIS parcel fetch (convenience path)
 │   │   ├── base.py          # ParcelRecord, JurisdictionConfig
 │   │   ├── arcgis.py        # Generic ArcGIS REST adapter (any county)
@@ -217,7 +222,7 @@ See [docs/architecture.md](docs/architecture.md) for full Mermaid diagrams.
 | 3 | ✅ Complete | Geometry parsers (GeoJSON/KML/SHP), projection, FastAPI endpoints, 132 tests |
 | 4 | Pending | Report persistence (reports table → Postgres) |
 | 5 | Pending | Report rendering (HTML + PDF) |
-| 6 | Pending | Web UI — map, file upload, edge selection, zoning form |
+| 6 | ✅ Complete | Web UI — OpenLayers map, file upload, edge selection, zoning form, results |
 | 7 | Pending | Scoring + financial quick-screen |
 | 8 | Pending | Pilot validation (50–100 real parcels) |
 
@@ -238,4 +243,4 @@ See [docs/architecture.md](docs/architecture.md) for full Mermaid diagrams.
 | HTTP client | requests (APN-lookup path only) |
 | Testing | pytest + pytest-mock + httpx2 (TestClient) |
 | Future: Reports | Jinja2 + Playwright |
-| Future: UI | OpenLayers (map + edge selection) |
+| UI | OpenLayers 9.x (map, file upload, edge selection) |

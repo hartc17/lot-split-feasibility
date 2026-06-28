@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lot Split Feasibility</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9.2.4/ol.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Lot Split Feasibility</h1>
+  <span>Automated subdivision screening</span>
+</header>
+
+<div class="workspace">
+  <div id="map"></div>
+
+  <aside class="sidebar">
+
+    <!-- Step 1: Geometry input -->
+    <div class="step">
+      <div class="step-label">Step 1</div>
+      <div class="step-title">Provide Parcel Geometry</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-upload" onclick="document.getElementById('file-input').click()">
+          Upload File
+        </button>
+        <button class="btn btn-secondary" id="btn-draw" onclick="startDraw()">
+          Draw on Map
+        </button>
+        <button class="btn btn-secondary" id="btn-cancel-draw" style="display:none" onclick="cancelDraw()">
+          Cancel
+        </button>
+      </div>
+      <input type="file" id="file-input" accept=".geojson,.json,.kml,.zip" onchange="handleFileUpload(event)">
+      <div class="file-hint">Accepts: GeoJSON, KML, Shapefile (.zip)</div>
+      <div id="parse-status" style="margin-top:8px; font-size:12px; color:#64748b;"></div>
+    </div>
+
+    <!-- Step 2: Edge selection -->
+    <div class="step" id="step-edge" style="opacity:0.4; pointer-events:none;">
+      <div class="step-label">Step 2</div>
+      <div class="step-title">Select Road-Facing Edge</div>
+      <div id="edge-status">Upload or draw a parcel to see edges.</div>
+      <div id="edge-list" class="edge-list"></div>
+    </div>
+
+    <!-- Step 3: Zoning rules -->
+    <div class="step" id="step-zoning" style="opacity:0.4; pointer-events:none;">
+      <div class="step-label">Step 3</div>
+      <div class="step-title">Zoning Rules</div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label>District code (optional)</label>
+          <input type="text" id="f-district-code" placeholder="e.g. R-1-2">
+        </div>
+        <div class="form-field">
+          <label>Min lot area (sqft)</label>
+          <input type="number" id="f-min-lot-area" placeholder="6825" min="1">
+        </div>
+        <div class="form-field">
+          <label>Min lot width (ft)</label>
+          <input type="number" id="f-min-lot-width" placeholder="65" min="1">
+        </div>
+        <div class="form-field">
+          <label>Setback front (ft)</label>
+          <input type="number" id="f-setback-front" placeholder="25" min="0">
+        </div>
+        <div class="form-field">
+          <label>Setback side (ft)</label>
+          <input type="number" id="f-setback-side" placeholder="8" min="0">
+        </div>
+        <div class="form-field">
+          <label>Setback rear (ft)</label>
+          <input type="number" id="f-setback-rear" placeholder="15" min="0">
+        </div>
+        <div class="form-field">
+          <label>Minor sub. threshold</label>
+          <input type="number" id="f-minor-threshold" placeholder="4" min="1">
+        </div>
+        <div class="form-field full" style="margin-top:4px;">
+          <label class="checkbox-row">
+            <input type="checkbox" id="f-flag-lots">
+            Allows flag lots
+          </label>
+        </div>
+        <div class="form-field full">
+          <label class="checkbox-row">
+            <input type="checkbox" id="f-public-road" checked>
+            Requires public road frontage
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="step" id="step-submit" style="opacity:0.4; pointer-events:none;">
+      <button class="btn btn-success" id="btn-run" onclick="runFeasibility()">
+        Run Feasibility Analysis
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+      <div class="result-header">Results</div>
+      <div id="results-body"></div>
+    </div>
+
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

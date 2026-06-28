@@ -299,7 +299,7 @@ These are now nice-to-haves, not blockers for shipping.
 | GeoJSON | `app/parsers/geojson.py` | FeatureCollection, Feature, or bare Polygon |
 | KML | `app/parsers/kml.py` | Google Maps/Earth export |
 | Shapefile | `app/parsers/shapefile.py` | ZIP containing .shp, .shx, .dbf |
-| Draw on map | Frontend (Phase 6) | User draws polygon, sends as GeoJSON |
+| Draw on map | OpenLayers (app/static/app.js) | User draws polygon via ol.interaction.Draw, sends as GeoJSON |
 
 All parsers return a Shapely `Polygon` in EPSG:4326 (WGS84). `app/parsers/projection.py` then:
 1. Detects the appropriate UTM zone from the parcel centroid
@@ -641,8 +641,8 @@ Activate the `reports` table (migration `b2a3f91dc017` already written). Wire `P
 **Phase 5 — Report rendering.**
 HTML template (Jinja2) + SVG lot diagram from engine geometry output. PDF export (Playwright). `GET /v1/feasibility/{id}/pdf`.
 
-**Phase 6 — Web UI.**
-Map (OpenLayers) for parcel draw + edge selection. File upload UI. Zoning rules form. Wires to `/v1/parse/*` (preview) → `/v1/feasibility` (submit).
+**Phase 6 — Web UI (✅ complete).**
+OpenLayers 9.x map served from `app/static/` at `GET /`. File upload (GeoJSON/KML/SHP zip), freehand polygon draw, per-edge click selection with live length labels, zoning rules form, results table with scenario and flag display. Assets served via FastAPI `StaticFiles` mount at `/static/`.
 
 **Phase 7 — Scoring & risk model.**
 Section 7 scoring implementation against the complete engine output.

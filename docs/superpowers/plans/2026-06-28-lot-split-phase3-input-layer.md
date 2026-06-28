@@ -286,7 +286,7 @@ curl -X POST http://localhost:8000/v1/feasibility \
 
 | Phase | Description |
 |---|---|
-| 4 | Web UI — OpenLayers map, file upload, edge selection, zoning form |
+| 4 | ✅ Web UI — OpenLayers map, file upload, edge selection, zoning form, results display |
 | 5 | Report rendering — HTML summary + PDF export |
 | 6 | Optional: address/APN lookup (geocode → ArcGIS fetch → pre-fill geometry) |
 | 7 | Scoring + financial quick-screen (cost-to-split vs. lot value delta) |
