@@ -119,8 +119,6 @@ export default function ResultsPanel({ results }) {
 
   return (
     <Box sx={{ p: 2 }}>
-      <SectionLabel>Results</SectionLabel>
-
       {score && <VerdictCard score={score} />}
       {score && <SubScores subScores={score.sub_scores} />}
 

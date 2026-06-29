@@ -1,6 +1,6 @@
 # Lot Split Feasibility Engine — Technical Specification
 
-**Status:** Draft v1 — updated 2026-06-28 to reflect general-purpose pivot
+**Status:** Draft v1 — updated 2026-06-29 to reflect Phase 9 completion
 **Audience:** Claude Code (autonomous build agent) and the engineer directing it
 **Purpose:** This document specifies a system that determines whether a residential parcel can likely be legally subdivided into multiple lots, how many lots, what each would look like, and whether doing so is probably worth the cost — without a human pulling zoning code or ordering a survey first.
 
@@ -650,7 +650,10 @@ React 18 + MUI v5 + OpenLayers 9.x SPA. Source in `frontend/`, built to `app/sta
 **Phase 8 — Comps/valuation layer.**
 Section 5.6/7.3 — financial quick-screen. Intentionally last; the rest of the product is complete without it.
 
-**Phase 9 — Pilot validation.**
+**Phase 9 — Multi-parcel workspace (✅ complete).**
+`frontend/src/hooks/useParcels.js` + `useMapLayers.js`. Multi-file upload, multi-draw, per-parcel state, `ParcelListPanel`, shape editing for all parcels (not just drawn), collapsible sidebar sections, `ZoningPanel` with Autocomplete presets + inline field validation, docked sticky Run button via `useImperativeHandle`, parcel deselect on empty map click.
+
+**Phase 10 — Pilot validation.**
 Run against 50–100 real parcels (any jurisdiction; users can provide their own zoning inputs). Manually audit a sample of reports for correctness.
 
 ---

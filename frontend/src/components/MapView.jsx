@@ -78,7 +78,11 @@ export default function MapView({
       const parcelFeature = map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         layerFilter: (l) => l === parcelLayer,
       });
-      if (parcelFeature) onActivateParcelRef.current(parcelFeature.get('parcelId'));
+      if (parcelFeature) {
+        onActivateParcelRef.current(parcelFeature.get('parcelId'));
+      } else if (!drawInteractionRef.current) {
+        onActivateParcelRef.current(null);
+      }
     });
 
     return () => map.setTarget(null);

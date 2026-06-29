@@ -1,7 +1,6 @@
 import { Box, List, ListItemButton, ListItemText, Typography, IconButton, Tooltip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PolylineOutlinedIcon from '@mui/icons-material/PolylineOutlined';
-import { SectionLabel } from './shared';
 import { scoreColor } from '../config';
 
 export default function ParcelListPanel({
@@ -11,7 +10,6 @@ export default function ParcelListPanel({
 
   return (
     <Box sx={{ p: 2 }}>
-      <SectionLabel>Parcels</SectionLabel>
       <List dense disablePadding>
         {parcels.map((p) => {
           const isActive  = p.id === activeParcelId;
@@ -21,7 +19,7 @@ export default function ParcelListPanel({
             <ListItemButton
               key={p.id}
               selected={isActive}
-              onClick={() => onActivate(p.id)}
+              onClick={() => onActivate(isActive ? null : p.id)}
               sx={{
                 borderRadius: 1,
                 border: '1px solid',

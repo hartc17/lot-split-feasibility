@@ -1,19 +1,16 @@
 /**
  * Shared layout primitives used across all sidebar panels.
  *
- * These are intentionally thin wrappers — they encode one repeated visual
- * pattern each, accept an `sx` escape hatch for one-off overrides, and
- * impose no business logic. If you find yourself repeating an sx pattern
- * more than twice in the codebase, it belongs here.
- *
  * Components:
- *   SectionLabel  — uppercase overline heading (step numbers, section names)
- *   StatRow       — label / value pair in a horizontal layout
- *   StatusChip    — small categorical badge; color keyed to chipColors below
- *   StepBox       — panel section wrapper with a disabled overlay
+ *   CollapsibleSection — titled panel section with expand/collapse toggle
+ *   SectionLabel       — uppercase overline heading for sub-sections
+ *   StatRow            — label / value pair in a horizontal layout
+ *   StatusChip         — small categorical badge; color keyed to chipColors below
  */
 
-import { Box, Typography, Chip } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Chip, ButtonBase, Collapse, Divider } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // ── Color palette for StatusChip ─────────────────────────────────────────────
 // Add entries here when a new semantic color is needed.
@@ -28,7 +25,49 @@ const CHIP_COLORS = {
 // ── Components ────────────────────────────────────────────────────────────────
 
 /**
- * Uppercase overline label used at the top of each panel section.
+ * Titled sidebar section with an expand/collapse toggle.
+ * Always renders a Divider at the bottom so stacked sections have clean separation.
+ */
+export function CollapsibleSection({ title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Box>
+      <ButtonBase
+        onClick={() => setOpen((o) => !o)}
+        sx={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          px: 2,
+          py: 1.25,
+          '&:hover': { bgcolor: '#f8fafc' },
+        }}
+      >
+        <Typography
+          variant="caption"
+          fontWeight={700}
+          sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', fontSize: 10 }}
+        >
+          {title}
+        </Typography>
+        <ExpandMoreIcon
+          sx={{
+            fontSize: 16,
+            color: '#94a3b8',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s',
+          }}
+        />
+      </ButtonBase>
+      <Collapse in={open}>{children}</Collapse>
+      <Divider />
+    </Box>
+  );
+}
+
+/**
+ * Uppercase overline label for sub-sections within a panel.
  * Default bottom margin is 0.75; override via sx when you need tighter spacing.
  */
 export function SectionLabel({ children, sx }) {
@@ -52,9 +91,6 @@ export function SectionLabel({ children, sx }) {
 
 /**
  * Horizontal label / value row with a subtle bottom border.
- *
- * The `value` prop renders in bold caption text. Use `children` for anything
- * that needs to appear after the value (chips, badges, icons):
  *
  *   <StatRow label="Max lots" value={4}>
  *     <StatusChip label="Data gap" color="yellow" />
@@ -97,27 +133,5 @@ export function StatusChip({ label, color = 'gray', sx }) {
       size="small"
       sx={{ fontSize: 10, height: 18, bgcolor: c.bg, color: c.color, ...sx }}
     />
-  );
-}
-
-/**
- * Panel section wrapper with a disabled overlay (opacity + pointer-events).
- * Defaults to p: 2; pass sx to adjust padding or other layout.
- *
- *   <StepBox disabled={!parcelLoaded}>...</StepBox>
- */
-export function StepBox({ disabled, children, sx }) {
-  return (
-    <Box
-      sx={{
-        p: 2,
-        opacity: disabled ? 0.45 : 1,
-        pointerEvents: disabled ? 'none' : 'auto',
-        transition: 'opacity 0.15s',
-        ...sx,
-      }}
-    >
-      {children}
-    </Box>
   );
 }

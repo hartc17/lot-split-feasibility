@@ -1,6 +1,21 @@
 # Phase 9: Multi-Parcel Workspace
 
+**Status: ✅ Complete** — shipped 2026-06-29
+
 **Goal:** Support multiple parcels in a single session. Any number of parcels can be added to the map — via individual file uploads (including multi-file), by drawing — in any combination. Clicking a parcel on the map makes it active; the sidebar then operates on that parcel's edge selection, zoning rules, feasibility result, and shape.
+
+## Scope changes from original plan
+
+| Item | Original | Actual |
+|---|---|---|
+| Shape editing | Drawn parcels only | All parcels (uploaded + drawn); `PolylineOutlined` edit button per row |
+| Sidebar sections | Flat list, always visible | Collapsible sections (`CollapsibleSection` in `shared.jsx`); Zoning + Edge only shown when parcel selected |
+| Road-facing edge | Always shown after parse | Hidden when `requires_public_road_frontage` is false in zoning form |
+| Zoning form inputs | Plain TextFields | MUI Autocomplete with preset common values (5000/6000/7500 sqft, etc.) |
+| Zoning validation | Submit-time `alert()` | Per-field inline errors on blur; all shown on submit attempt |
+| Run button | Inside ZoningPanel | Docked sticky button at bottom-right of sidebar via `useImperativeHandle` |
+| Parcel deselect | No deselect | Click empty map area or click active parcel in list to deselect |
+| Draw mode sidebar | Always visible | Sidebar hidden during draw; floating "Stop Drawing" button over map |
 
 ---
 

@@ -1,25 +1,19 @@
 import { Box, Typography, List, ListItemButton, ListItemText } from '@mui/material';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
-import { SectionLabel, StatusChip, StepBox } from './shared';
+import { StatusChip } from './shared';
 
 const MIN_DISPLAY_FT = 1;
 
-export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, disabled }) {
+export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge }) {
   const visibleEdges = edges.filter((e) => e.length_ft >= MIN_DISPLAY_FT);
   const totalFt = edges
     .filter((e) => selectedEdgeIndices.includes(e.index))
     .reduce((sum, e) => sum + e.length_ft, 0);
 
   return (
-    <StepBox disabled={disabled}>
-      <SectionLabel>Step 2</SectionLabel>
-      <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-        Select Road-Facing Edge(s)
-      </Typography>
+    <Box sx={{ p: 2 }}>
       <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 1 }}>
-        {disabled
-          ? 'Upload or draw a parcel first.'
-          : 'Click one or more contiguous edges on the map or list below.'}
+        Click one or more contiguous edges on the map or in the list below.
       </Typography>
 
       {selectedEdgeIndices.length > 0 && (
@@ -70,12 +64,12 @@ export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, di
         </List>
       )}
 
-      {!disabled && visibleEdges.length === 0 && (
+      {visibleEdges.length === 0 && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#94a3b8' }}>
           <TouchAppIcon sx={{ fontSize: 16 }} />
           <Typography variant="caption">No edges yet.</Typography>
         </Box>
       )}
-    </StepBox>
+    </Box>
   );
 }

@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Box, Divider, Alert, Button } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Alert, Button, CircularProgress } from '@mui/material';
 import StopIcon from '@mui/icons-material/Stop';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import MapView from './components/MapView';
 import UploadPanel from './components/UploadPanel';
 import ParcelListPanel from './components/ParcelListPanel';
 import EdgePanel from './components/EdgePanel';
 import ZoningPanel, { ZONING_DEFAULTS } from './components/ZoningPanel';
 import ResultsPanel from './components/ResultsPanel';
+import { CollapsibleSection } from './components/shared';
 import { useParcels } from './hooks/useParcels';
 import { parseFile, parseGeojson, runFeasibility } from './api';
 
@@ -17,8 +19,9 @@ export default function App() {
   const [drawMode, setDrawMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [apiError, setApiError] = useState(null);
-  const drawCountRef            = useRef(0);
-  const resultsRef              = useRef(null);
+  const drawCountRef    = useRef(0);
+  const resultsRef      = useRef(null);
+  const zoningPanelRef  = useRef(null);
 
   useEffect(() => {
     if (activeParcel?.results && resultsRef.current) {
@@ -65,7 +68,8 @@ export default function App() {
   }, [activeParcelId, update]);
 
   const handleZoningSubmit = useCallback(async (zoningData) => {
-    if (!activeParcel || activeParcel.selectedEdgeIndices.length === 0) return;
+    if (!activeParcel) return;
+    if (zoningData.requires_public_road_frontage && activeParcel.selectedEdgeIndices.length === 0) return;
     update(activeParcelId, { loading: true, results: null });
     setApiError(null);
     try {
@@ -87,10 +91,10 @@ export default function App() {
     try {
       const data = await parseGeojson(geojson);
       update(activeParcelId, {
-        polygon4326:          data.polygon,
-        edges:                data.edges,
-        selectedEdgeIndices:  [],
-        results:              null,
+        polygon4326:         data.polygon,
+        edges:               data.edges,
+        selectedEdgeIndices: [],
+        results:             null,
       });
     } catch (err) {
       setApiError(err.message);
@@ -118,8 +122,10 @@ export default function App() {
     drawCountRef.current = 0;
   }, [clearAll]);
 
-  const parcelLoaded = !!activeParcel;
-  const edgeSelected = (activeParcel?.selectedEdgeIndices.length ?? 0) > 0;
+  const parcelLoaded         = !!activeParcel;
+  const requiresRoadFrontage = activeParcel?.zoningForm?.requires_public_road_frontage ?? true;
+  const edgeSelected         = (activeParcel?.selectedEdgeIndices.length ?? 0) > 0;
+  const canSubmit            = parcelLoaded && (requiresRoadFrontage ? edgeSelected : true);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -163,72 +169,105 @@ export default function App() {
         </Box>
 
         {!drawMode && (
-        <Box
-          sx={{
-            width: 360,
-            flexShrink: 0,
-            bgcolor: '#fff',
-            borderLeft: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: 'auto',
-          }}
-        >
-          <UploadPanel
-            parcelCount={parcels.length}
-            onUploadFiles={handleUploadFiles}
-            onStartDraw={() => setDrawMode(true)}
-            onClearAll={handleClearAll}
-          />
-
-          {parcels.length > 0 && (
-            <>
-              <Divider />
-              <ParcelListPanel
-                parcels={parcels}
-                activeParcelId={activeParcelId}
-                editMode={editMode}
-                onActivate={handleActivateParcel}
-                onEditParcel={handleEditParcel}
-                onRemove={remove}
+          <Box
+            sx={{
+              width: 360,
+              flexShrink: 0,
+              bgcolor: '#fff',
+              borderLeft: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+            }}
+          >
+            <CollapsibleSection title="Create Parcel">
+              <UploadPanel
+                parcelCount={parcels.length}
+                onUploadFiles={handleUploadFiles}
+                onStartDraw={() => setDrawMode(true)}
+                onClearAll={handleClearAll}
               />
-            </>
-          )}
+            </CollapsibleSection>
 
-          <Divider />
+            {parcels.length > 0 && (
+              <CollapsibleSection title="Parcels">
+                <ParcelListPanel
+                  parcels={parcels}
+                  activeParcelId={activeParcelId}
+                  editMode={editMode}
+                  onActivate={handleActivateParcel}
+                  onEditParcel={handleEditParcel}
+                  onRemove={remove}
+                />
+              </CollapsibleSection>
+            )}
 
-          <EdgePanel
-            edges={activeParcel?.edges ?? []}
-            selectedEdgeIndices={activeParcel?.selectedEdgeIndices ?? []}
-            onToggleEdge={handleEdgeToggle}
-            disabled={!parcelLoaded}
-          />
+            {parcelLoaded && (
+              <CollapsibleSection title="Zoning Rules">
+                <ZoningPanel
+                  key={activeParcelId}
+                  ref={zoningPanelRef}
+                  onSubmit={handleZoningSubmit}
+                  initialValues={activeParcel.zoningForm}
+                  onFormChange={handleZoningChange}
+                />
+              </CollapsibleSection>
+            )}
 
-          <Divider />
+            {parcelLoaded && requiresRoadFrontage && (
+              <CollapsibleSection title="Road-Facing Edge">
+                <EdgePanel
+                  edges={activeParcel.edges ?? []}
+                  selectedEdgeIndices={activeParcel.selectedEdgeIndices ?? []}
+                  onToggleEdge={handleEdgeToggle}
+                />
+              </CollapsibleSection>
+            )}
 
-          <ZoningPanel
-            key={activeParcelId}
-            disabled={!parcelLoaded}
-            loading={activeParcel?.loading ?? false}
-            canSubmit={parcelLoaded && edgeSelected}
-            onSubmit={handleZoningSubmit}
-            initialValues={activeParcel?.zoningForm}
-            onFormChange={handleZoningChange}
-          />
+            {apiError && (
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Alert severity="error" sx={{ fontSize: 12 }}>{apiError}</Alert>
+              </Box>
+            )}
 
-          {apiError && (
-            <Box sx={{ px: 2, pb: 2 }}>
-              <Alert severity="error" sx={{ fontSize: 12 }}>{apiError}</Alert>
-            </Box>
-          )}
+            {activeParcel?.results && !activeParcel.loading && (
+              <Box ref={resultsRef}>
+                <CollapsibleSection title="Results">
+                  <ResultsPanel results={activeParcel.results} />
+                </CollapsibleSection>
+              </Box>
+            )}
 
-          {activeParcel?.results && !activeParcel.loading && (
-            <Box ref={resultsRef}>
-              <Divider />
-              <ResultsPanel results={activeParcel.results} />
-            </Box>
-          )}
-        </Box>
+            {parcelLoaded && (
+              <Box
+                sx={{
+                  position: 'sticky',
+                  bottom: 0,
+                  mt: 'auto',
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: '#fff',
+                  borderTop: '1px solid #e2e8f0',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={!canSubmit || activeParcel.loading}
+                  onClick={() => zoningPanelRef.current?.submit()}
+                  startIcon={
+                    activeParcel.loading
+                      ? <CircularProgress size={16} color="inherit" />
+                      : <PlayArrowIcon />
+                  }
+                >
+                  {activeParcel.loading ? 'Running…' : 'Run Feasibility Analysis'}
+                </Button>
+              </Box>
+            )}
+          </Box>
         )}
       </Box>
     </Box>

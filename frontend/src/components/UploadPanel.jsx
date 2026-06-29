@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { Box, Button, Typography, Stack } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import EditIcon from '@mui/icons-material/Edit';
-import { SectionLabel } from './shared';
 
 export default function UploadPanel({
   parcelCount,
@@ -21,11 +20,6 @@ export default function UploadPanel({
 
   return (
     <Box sx={{ p: 2 }}>
-      <SectionLabel>Step 1</SectionLabel>
-      <Typography variant="body2" fontWeight={600} sx={{ mb: 1.5 }}>
-        Provide Parcel Geometry
-      </Typography>
-
       <input
         ref={fileInputRef}
         type="file"
