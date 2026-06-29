@@ -74,10 +74,11 @@ def test_extract_edges_single_index_matches_extract_edge():
     assert list(extract_edges(poly, [0]).coords) == list(extract_edge(poly, 0).coords)
 
 
-def test_extract_edges_non_contiguous_raises():
-    poly = Polygon([(0, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
-    with pytest.raises(ValueError, match="not contiguous"):
-        extract_edges(poly, [0, 2])
+def test_extract_edges_fills_gap_between_endpoints():
+    # Selecting [0, 2] fills the range 0–2, producing a 4-point LineString
+    poly = Polygon([(0, 0), (50, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
+    merged = extract_edges(poly, [0, 2])
+    assert list(merged.coords) == [(0.0, 0.0), (50.0, 0.0), (100.0, 0.0), (100.0, 125.0)]
 
 
 def test_extract_edges_out_of_range_raises():

@@ -5,25 +5,24 @@ from app.parsers.projection import get_utm_epsg, project_to_feet
 
 
 def extract_edges(polygon: Polygon, edge_indices: list[int]) -> LineString:
-    """Merge one or more contiguous exterior edges into a single LineString (0-indexed).
+    """Merge exterior edges into a single LineString (0-indexed).
 
-    Raises ValueError if any index is out of range or the indices are not contiguous.
-    Duplicate indices are ignored. A single index produces a 2-point LineString.
+    Accepts any non-empty set of indices and fills the full range between the
+    minimum and maximum index, so callers can pass the visible endpoints of a
+    curved/multi-segment road edge without needing to enumerate micro-segments.
+
+    Raises ValueError if any index in the filled range is out of range.
     """
     coords = list(polygon.exterior.coords)
     num_edges = len(coords) - 1  # closed ring: last coord == first coord
-    for idx in edge_indices:
+    lo, hi = min(edge_indices), max(edge_indices)
+    for idx in (lo, hi):
         if not (0 <= idx < num_edges):
             raise ValueError(
                 f"edge_index {idx} is out of range for a polygon with {num_edges} edges"
             )
-    sorted_indices = sorted(set(edge_indices))
-    for i in range(len(sorted_indices) - 1):
-        if sorted_indices[i + 1] != sorted_indices[i] + 1:
-            raise ValueError(
-                f"edges {sorted_indices[i]} and {sorted_indices[i + 1]} are not contiguous"
-            )
-    merged = [coords[sorted_indices[0]]] + [coords[idx + 1] for idx in sorted_indices]
+    full_range = range(lo, hi + 1)
+    merged = [coords[lo]] + [coords[idx + 1] for idx in full_range]
     return LineString(merged)
 
 

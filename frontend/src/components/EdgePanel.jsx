@@ -2,7 +2,10 @@ import { Box, Typography, List, ListItemButton, ListItemText } from '@mui/materi
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { SectionLabel, StatusChip, StepBox } from './shared';
 
+const MIN_DISPLAY_FT = 1;
+
 export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, disabled }) {
+  const visibleEdges = edges.filter((e) => e.length_ft >= MIN_DISPLAY_FT);
   const totalFt = edges
     .filter((e) => selectedEdgeIndices.includes(e.index))
     .reduce((sum, e) => sum + e.length_ft, 0);
@@ -26,9 +29,9 @@ export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, di
         </Typography>
       )}
 
-      {edges.length > 0 && (
+      {visibleEdges.length > 0 && (
         <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
-          {edges.map(({ index, length_ft }) => {
+          {visibleEdges.map(({ index, length_ft }) => {
             const selected = selectedEdgeIndices.includes(index);
             return (
               <ListItemButton
@@ -67,7 +70,7 @@ export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, di
         </List>
       )}
 
-      {!disabled && edges.length === 0 && (
+      {!disabled && visibleEdges.length === 0 && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#94a3b8' }}>
           <TouchAppIcon sx={{ fontSize: 16 }} />
           <Typography variant="caption">No edges yet.</Typography>
