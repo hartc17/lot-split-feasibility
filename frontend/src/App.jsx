@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Box, Divider, Alert } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Divider, Alert, Button } from '@mui/material';
+import StopIcon from '@mui/icons-material/Stop';
 import MapView from './components/MapView';
 import UploadPanel from './components/UploadPanel';
 import ParcelListPanel from './components/ParcelListPanel';
@@ -147,8 +148,21 @@ export default function App() {
             onActivateParcel={handleActivateParcel}
             onParcelModified={handleParcelModified}
           />
+          {drawMode && (
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<StopIcon />}
+              onClick={() => setDrawMode(false)}
+              sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+            >
+              Stop Drawing
+            </Button>
+          )}
         </Box>
 
+        {!drawMode && (
         <Box
           sx={{
             width: 360,
@@ -161,11 +175,9 @@ export default function App() {
           }}
         >
           <UploadPanel
-            drawMode={drawMode}
             parcelCount={parcels.length}
             onUploadFiles={handleUploadFiles}
             onStartDraw={() => setDrawMode(true)}
-            onStopDraw={() => setDrawMode(false)}
             onClearAll={handleClearAll}
           />
 
@@ -217,6 +229,7 @@ export default function App() {
             </Box>
           )}
         </Box>
+        )}
       </Box>
     </Box>
   );

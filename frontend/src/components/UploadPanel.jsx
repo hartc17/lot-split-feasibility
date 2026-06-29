@@ -2,15 +2,12 @@ import { useRef } from 'react';
 import { Box, Button, Typography, Stack } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import EditIcon from '@mui/icons-material/Edit';
-import CloseIcon from '@mui/icons-material/Close';
 import { SectionLabel } from './shared';
 
 export default function UploadPanel({
-  drawMode,
   parcelCount,
   onUploadFiles,
   onStartDraw,
-  onStopDraw,
   onClearAll,
 }) {
   const fileInputRef = useRef(null);
@@ -38,36 +35,26 @@ export default function UploadPanel({
         onChange={handleFileChange}
       />
 
-      {drawMode ? (
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" color="error" startIcon={<CloseIcon />} onClick={onStopDraw}>
-            Stop Drawing
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Button
+          variant="contained"
+          startIcon={<UploadFileIcon />}
+          onClick={() => fileInputRef.current.click()}
+        >
+          Upload
+        </Button>
+        <Button variant="outlined" startIcon={<EditIcon />} onClick={onStartDraw}>
+          Draw
+        </Button>
+        {parcelCount > 0 && (
+          <Button variant="text" color="inherit" onClick={onClearAll} sx={{ color: '#94a3b8' }}>
+            Clear All
           </Button>
-        </Stack>
-      ) : (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="contained"
-            startIcon={<UploadFileIcon />}
-            onClick={() => fileInputRef.current.click()}
-          >
-            Upload
-          </Button>
-          <Button variant="outlined" startIcon={<EditIcon />} onClick={onStartDraw}>
-            Draw
-          </Button>
-          {parcelCount > 0 && (
-            <Button variant="text" color="inherit" onClick={onClearAll} sx={{ color: '#94a3b8' }}>
-              Clear All
-            </Button>
-          )}
-        </Stack>
-      )}
+        )}
+      </Stack>
 
       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 1 }}>
-        {drawMode
-          ? 'Click to place vertices. Double-click to finish. Draw more or click Stop Drawing.'
-          : 'Accepts .geojson, .kml, .zip (shapefile). Multiple files supported.'}
+        Accepts .geojson, .kml, .zip (shapefile). Multiple files supported.
       </Typography>
     </Box>
   );
