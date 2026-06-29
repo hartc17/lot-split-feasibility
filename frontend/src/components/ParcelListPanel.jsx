@@ -1,9 +1,12 @@
-import { Box, List, ListItemButton, ListItemText, Typography, IconButton } from '@mui/material';
+import { Box, List, ListItemButton, ListItemText, Typography, IconButton, Tooltip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PolylineOutlinedIcon from '@mui/icons-material/PolylineOutlined';
 import { SectionLabel } from './shared';
 import { scoreColor } from '../config';
 
-export default function ParcelListPanel({ parcels, activeParcelId, onActivate, onRemove }) {
+export default function ParcelListPanel({
+  parcels, activeParcelId, editMode, onActivate, onEditParcel, onRemove,
+}) {
   if (parcels.length === 0) return null;
 
   return (
@@ -11,8 +14,9 @@ export default function ParcelListPanel({ parcels, activeParcelId, onActivate, o
       <SectionLabel>Parcels</SectionLabel>
       <List dense disablePadding>
         {parcels.map((p) => {
-          const isActive = p.id === activeParcelId;
-          const score    = p.results?.score ?? null;
+          const isActive  = p.id === activeParcelId;
+          const isEditing = isActive && editMode;
+          const score     = p.results?.score ?? null;
           return (
             <ListItemButton
               key={p.id}
@@ -40,23 +44,38 @@ export default function ParcelListPanel({ parcels, activeParcelId, onActivate, o
                 <Typography
                   variant="caption"
                   fontWeight={600}
-                  sx={{ color: scoreColor(score), mr: 1, flexShrink: 0 }}
+                  sx={{ color: scoreColor(score), mr: 0.5, flexShrink: 0 }}
                 >
                   {score}
                 </Typography>
               )}
               {p.loading && (
-                <Typography variant="caption" sx={{ color: '#94a3b8', mr: 1, flexShrink: 0 }}>
+                <Typography variant="caption" sx={{ color: '#94a3b8', mr: 0.5, flexShrink: 0 }}>
                   …
                 </Typography>
               )}
-              <IconButton
-                size="small"
-                onClick={(e) => { e.stopPropagation(); onRemove(p.id); }}
-                sx={{ color: '#94a3b8', '&:hover': { color: '#ef4444' }, flexShrink: 0 }}
-              >
-                <DeleteIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+              <Tooltip title={isEditing ? 'Exit edit mode' : 'Edit geometry'} placement="top">
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onEditParcel(p.id); }}
+                  sx={{
+                    flexShrink: 0,
+                    color: isEditing ? '#2563eb' : '#94a3b8',
+                    '&:hover': { color: '#2563eb' },
+                  }}
+                >
+                  <PolylineOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Remove parcel" placement="top">
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onRemove(p.id); }}
+                  sx={{ flexShrink: 0, color: '#94a3b8', '&:hover': { color: '#ef4444' } }}
+                >
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
             </ListItemButton>
           );
         })}

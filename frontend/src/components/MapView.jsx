@@ -15,6 +15,7 @@ export default function MapView({
   activeParcelId,
   activeParcel,
   selectedEdgeIndices,
+  editMode,
   drawMode,
   onEdgeToggle,
   onDrawComplete,
@@ -108,37 +109,38 @@ export default function MapView({
     });
   }, [parcels]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync active parcel: update ref, fit map, manage Modify interaction
+  // Sync active parcel: update ref, refresh layer, fly to extent
   useEffect(() => {
     activeIdRef.current = activeParcelId;
     parcelLayerRef.current?.changed();
 
-    const map           = mapRef.current;
-    const activeFeature = activeParcelId
-      ? parcelFeaturesRef.current[activeParcelId]
-      : null;
-
-    if (activeFeature && map) {
-      map.getView().fit(activeFeature.getGeometry().getExtent(), {
+    const activeFeature = activeParcelId ? parcelFeaturesRef.current[activeParcelId] : null;
+    if (activeFeature && mapRef.current) {
+      mapRef.current.getView().fit(activeFeature.getGeometry().getExtent(), {
         padding: [60, 60, 60, 60], duration: 300, maxZoom: 19,
       });
     }
+  }, [activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Manage Modify interaction based on editMode + activeParcelId
+  useEffect(() => {
+    const map = mapRef.current;
     if (modifyInteractionRef.current && map) {
       map.removeInteraction(modifyInteractionRef.current);
       modifyInteractionRef.current = null;
     }
-    if (activeParcel?.source === 'draw' && activeFeature && map) {
-      const collection = new Collection([activeFeature]);
-      const modify     = new Modify({ features: collection });
-      modify.on('modifyend', () => {
-        const geom = activeFeature.getGeometry().clone().transform('EPSG:3857', 'EPSG:4326');
-        onParcelModifiedRef.current({ type: 'Polygon', coordinates: geom.getCoordinates() });
-      });
-      map.addInteraction(modify);
-      modifyInteractionRef.current = modify;
-    }
-  }, [activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!editMode || !activeParcelId || !map) return;
+    const activeFeature = parcelFeaturesRef.current[activeParcelId];
+    if (!activeFeature) return;
+    const collection = new Collection([activeFeature]);
+    const modify     = new Modify({ features: collection });
+    modify.on('modifyend', () => {
+      const geom = activeFeature.getGeometry().clone().transform('EPSG:3857', 'EPSG:4326');
+      onParcelModifiedRef.current({ type: 'Polygon', coordinates: geom.getCoordinates() });
+    });
+    map.addInteraction(modify);
+    modifyInteractionRef.current = modify;
+  }, [editMode, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-sync edge layer when the active parcel's edges change (e.g. after shape edit + reparse)
   useEffect(() => {

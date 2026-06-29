@@ -14,6 +14,7 @@ export default function App() {
     useParcels(ZONING_DEFAULTS);
 
   const [drawMode, setDrawMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [apiError, setApiError] = useState(null);
   const drawCountRef            = useRef(0);
   const resultsRef              = useRef(null);
@@ -95,6 +96,20 @@ export default function App() {
     }
   }, [activeParcelId, update]);
 
+  const handleActivateParcel = useCallback((id) => {
+    setActiveParcelId(id);
+    setEditMode(false);
+  }, [setActiveParcelId]);
+
+  const handleEditParcel = useCallback((id) => {
+    if (id !== activeParcelId) {
+      setActiveParcelId(id);
+      setEditMode(true);
+    } else {
+      setEditMode((prev) => !prev);
+    }
+  }, [activeParcelId, setActiveParcelId]);
+
   const handleClearAll = useCallback(() => {
     clearAll();
     setDrawMode(false);
@@ -125,10 +140,11 @@ export default function App() {
             activeParcelId={activeParcelId}
             activeParcel={activeParcel}
             selectedEdgeIndices={activeParcel?.selectedEdgeIndices ?? []}
+            editMode={editMode}
             drawMode={drawMode}
             onEdgeToggle={handleEdgeToggle}
             onDrawComplete={handleDrawComplete}
-            onActivateParcel={setActiveParcelId}
+            onActivateParcel={handleActivateParcel}
             onParcelModified={handleParcelModified}
           />
         </Box>
@@ -159,7 +175,9 @@ export default function App() {
               <ParcelListPanel
                 parcels={parcels}
                 activeParcelId={activeParcelId}
-                onActivate={setActiveParcelId}
+                editMode={editMode}
+                onActivate={handleActivateParcel}
+                onEditParcel={handleEditParcel}
                 onRemove={remove}
               />
             </>
