@@ -153,4 +153,4 @@ The theme is the right place for font sizes, spacing, and component defaults tha
 | 6 | ✅ Web UI (OpenLayers, file upload, edge selection, results) |
 | 7 | ✅ Scoring + rule-based 0–100 score, verdict card in UI |
 | 8 | ⏳ Pilot validation |
-| 9 | ⏳ Batch multi-parcel analysis (FeatureCollection upload, auto edge detection, results table, CSV export) |
+| 9 | ⏳ Multi-parcel workspace (multi-file upload, multi-draw, per-parcel state, parcel list sidebar, shape editing) |
