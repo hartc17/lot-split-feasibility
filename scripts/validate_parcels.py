@@ -7,6 +7,7 @@ Usage:
 
 Outputs a table: APN | geometry? | area_sqft | zoning_code_raw | status
 """
+
 import argparse
 import os
 import sys
@@ -14,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from app.adapters.arcgis import ArcGISParcelAdapter
@@ -37,18 +39,33 @@ def validate_apn(adapter: ArcGISParcelAdapter, apn: str) -> dict:
     try:
         record = adapter.fetch_by_apn(apn)
     except Exception as exc:
-        return {"apn": apn, "status": f"ERROR: {exc}", "area_sqft": None,
-                "geometry": False, "zoning_code_raw": None}
+        return {
+            "apn": apn,
+            "status": f"ERROR: {exc}",
+            "area_sqft": None,
+            "geometry": False,
+            "zoning_code_raw": None,
+        }
 
     if record is None:
-        return {"apn": apn, "status": "NOT FOUND", "area_sqft": None,
-                "geometry": False, "zoning_code_raw": None}
+        return {
+            "apn": apn,
+            "status": "NOT FOUND",
+            "area_sqft": None,
+            "geometry": False,
+            "zoning_code_raw": None,
+        }
 
     try:
         area = compute_area_sqft(record.geometry_geojson)
     except Exception as exc:
-        return {"apn": apn, "status": f"AREA ERROR: {exc}", "area_sqft": None,
-                "geometry": True, "zoning_code_raw": record.zoning_code_raw}
+        return {
+            "apn": apn,
+            "status": f"AREA ERROR: {exc}",
+            "area_sqft": None,
+            "geometry": True,
+            "zoning_code_raw": record.zoning_code_raw,
+        }
 
     if area < MIN_PLAUSIBLE_SQFT:
         status = f"WARN: area too small ({area:.0f} sqft)"

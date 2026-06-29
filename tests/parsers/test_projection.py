@@ -1,32 +1,36 @@
 """Tests for coordinate projection utilities."""
-import pytest
+
 from shapely.geometry import Polygon
 
-from app.parsers.projection import get_utm_epsg, project_to_feet
 from app.parsers.geojson import parse_geojson
+from app.parsers.projection import get_utm_epsg, project_to_feet
 
 # ~1-acre polygon near Kyle TX (same as normalizer test fixture)
 _ACRE_POLYGON_4326 = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.88000, 29.99000],
-        [-97.87934, 29.99000],
-        [-97.87934, 29.99057],
-        [-97.88000, 29.99057],
-        [-97.88000, 29.99000],
-    ]],
+    "coordinates": [
+        [
+            [-97.88000, 29.99000],
+            [-97.87934, 29.99000],
+            [-97.87934, 29.99057],
+            [-97.88000, 29.99057],
+            [-97.88000, 29.99000],
+        ]
+    ],
 }
 
 # Small polygon near Austin TX
 _SMALL_POLYGON_4326 = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.8800, 29.9900],
-        [-97.8793, 29.9900],
-        [-97.8793, 29.9908],
-        [-97.8800, 29.9908],
-        [-97.8800, 29.9900],
-    ]],
+    "coordinates": [
+        [
+            [-97.8800, 29.9900],
+            [-97.8793, 29.9900],
+            [-97.8793, 29.9908],
+            [-97.8800, 29.9908],
+            [-97.8800, 29.9900],
+        ]
+    ],
 }
 
 
@@ -55,6 +59,7 @@ def test_project_to_feet_returns_polygon():
 def test_project_to_feet_area_within_2pct_of_geodetic():
     """Projected area in sqft should be within 2% of geodetic area."""
     from pyproj import Geod
+
     _GEOD = Geod(ellps="WGS84")
     _SQM_TO_SQFT = 10.7639104167
 

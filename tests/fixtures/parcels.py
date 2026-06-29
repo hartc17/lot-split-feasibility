@@ -3,6 +3,7 @@ Synthetic parcel fixtures for engine unit tests.
 All coordinates in feet, frontage along y=0 (bottom edge).
 These correspond exactly to the 7 fixtures in spec Section 6.3.
 """
+
 from shapely.geometry import LineString, Polygon
 
 from app.engine.types import (
@@ -146,9 +147,7 @@ def fixture_5_structure_conflict():
         **_BASE_ZONING,
     )
     # House footprint: x=20..60, y=30..90
-    house = StructureInput(
-        footprint=Polygon([(20, 30), (60, 30), (60, 90), (20, 90)])
-    )
+    house = StructureInput(footprint=Polygon([(20, 30), (60, 30), (60, 90), (20, 90)]))
     return parcel, zoning, [house], []
 
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import uuid
 from datetime import date, datetime
 
@@ -13,7 +14,9 @@ class ZoningDistrict(Base):
     __tablename__ = "zoning_districts"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jurisdictions.id"), nullable=False)
+    jurisdiction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jurisdictions.id"), nullable=False
+    )
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     min_lot_area_sqft: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -27,7 +30,9 @@ class ZoningDistrict(Base):
     max_height_ft: Mapped[int | None] = mapped_column(Integer)
     max_lot_coverage_pct: Mapped[float | None] = mapped_column(Float)
     max_far: Mapped[float | None] = mapped_column(Float)
-    requires_public_road_frontage: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    requires_public_road_frontage: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
     min_road_frontage_ft: Mapped[int | None] = mapped_column(Integer)
     allows_flag_lots: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     flag_lot_min_access_strip_ft: Mapped[int | None] = mapped_column(Integer)
@@ -40,5 +45,5 @@ class ZoningDistrict(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    jurisdiction: Mapped["Jurisdiction"] = relationship(back_populates="zoning_districts")  # noqa: F821
-    parcels: Mapped[list["Parcel"]] = relationship(back_populates="zoning_district")  # noqa: F821
+    jurisdiction: Mapped[Jurisdiction] = relationship(back_populates="zoning_districts")  # noqa: F821
+    parcels: Mapped[list[Parcel]] = relationship(back_populates="zoning_district")  # noqa: F821

@@ -22,7 +22,7 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
     try:
         polygon_4326 = parse_geojson(body.geometry)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid geometry: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid geometry: {exc}") from exc
 
     try:
         parcel_input = build_parcel_geometry_input(
@@ -31,13 +31,13 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
             zoning_district_code=body.zoning.district_code or None,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     zoning_dict = body.zoning.model_dump()
     try:
         zoning_input = build_zoning_rules_input(zoning_dict)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     result = calculate_subdivision_scenarios(
         parcel=parcel_input,

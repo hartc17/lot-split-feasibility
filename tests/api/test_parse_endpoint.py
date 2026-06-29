@@ -1,5 +1,5 @@
 """Tests for /v1/parse/* endpoints — no DB, no network."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 from app.api.app import app
@@ -8,13 +8,15 @@ client = TestClient(app)
 
 _POLYGON = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.88000, 29.99000],
-        [-97.87934, 29.99000],
-        [-97.87934, 29.99057],
-        [-97.88000, 29.99057],
-        [-97.88000, 29.99000],
-    ]],
+    "coordinates": [
+        [
+            [-97.88000, 29.99000],
+            [-97.87934, 29.99000],
+            [-97.87934, 29.99057],
+            [-97.88000, 29.99057],
+            [-97.88000, 29.99000],
+        ]
+    ],
 }
 
 _FEATURE_COLLECTION = {

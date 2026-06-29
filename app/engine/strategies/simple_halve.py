@@ -185,7 +185,10 @@ def run_frontage_strip(
     results = []
     for n in range(2, max_lots + 1):
         scenario = _try_n_strip_split(
-            parcel, zoning, existing_structures, n,
+            parcel,
+            zoning,
+            existing_structures,
+            n,
             LotLayoutType.SIMPLE_HALVE if n == 2 else LotLayoutType.FRONTAGE_STRIP,
         )
         if scenario:

@@ -1,8 +1,8 @@
 import io
 
 from shapely.geometry import Polygon
-from shapely.geometry import shape as shapely_shape
 from shapely.geometry import mapping as shapely_mapping
+from shapely.geometry import shape as shapely_shape
 
 
 def parse_kml(kml_bytes: bytes) -> Polygon:
@@ -39,6 +39,7 @@ def _find_polygon(features):
                 # Drop Z coordinate so projection works cleanly
                 if geom.has_z:
                     from shapely.ops import transform as shp_transform
+
                     geom = shp_transform(lambda x, y, z=None: (x, y), geom)
                 if geom.geom_type == "Polygon":
                     return geom

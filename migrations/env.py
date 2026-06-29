@@ -1,10 +1,9 @@
 import os
 from logging.config import fileConfig
 
+from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
-
-from alembic import context
 
 load_dotenv()
 
@@ -15,14 +14,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models so Alembic can detect them for autogenerate
-from app.models import Base  # noqa: E402
 from app.models import (  # noqa: F401, E402
-    Jurisdiction,
-    ZoningDistrict,
-    Parcel,
+    Base,  # noqa: E402
     EnvironmentalConstraint,
-    SubdivisionScenario,
     FeasibilityReport,
+    Jurisdiction,
+    Parcel,
+    SubdivisionScenario,
+    ZoningDistrict,
 )
 
 target_metadata = Base.metadata

@@ -1,7 +1,6 @@
 """Tests for app/scoring/scoring.py — pure scoring logic, no DB or I/O."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from app.engine.types import (
     ConstraintSeverity,
@@ -25,8 +24,8 @@ from app.scoring.scoring import (
     score_result,
 )
 
-
 # ── Factories ──────────────────────────────────────────────────────────────────
+
 
 def _flag(category: RiskCategory) -> RiskFlag:
     return RiskFlag(category=category, severity=ConstraintSeverity.BLOCKING, message="test")
@@ -69,6 +68,7 @@ def _result(
 
 # ── score_result() ─────────────────────────────────────────────────────────────
 
+
 def test_score_result_returns_feasibility_score():
     result = score_result(_result())
     assert isinstance(result, FeasibilityScore)
@@ -105,15 +105,18 @@ def test_score_result_weights_sum_to_one():
 
 # ── _zoning_score ──────────────────────────────────────────────────────────────
 
+
 def test_zoning_data_gap_returns_zero():
     score, _ = _zoning_score(_result(data_gap=True))
     assert score == 0
 
 
 def test_zoning_area_shortfall_returns_five():
-    score, _ = _zoning_score(_result(
-        disqualifying_flags=[_flag(RiskCategory.ZONING_AREA_SHORTFALL)],
-    ))
+    score, _ = _zoning_score(
+        _result(
+            disqualifying_flags=[_flag(RiskCategory.ZONING_AREA_SHORTFALL)],
+        )
+    )
     assert score == 5
 
 
@@ -140,9 +143,15 @@ def test_zoning_rezone_deducts_50():
 
 def test_zoning_rezone_and_variance_floors_at_zero():
     # -50 rezone + -30 variance + -15 flag = -95, floor 0
-    score, _ = _zoning_score(_result(scenarios=[
-        _scenario(requires_rezone=True, requires_variance=True, requires_flag_lot_provision=True)
-    ]))
+    score, _ = _zoning_score(
+        _result(
+            scenarios=[
+                _scenario(
+                    requires_rezone=True, requires_variance=True, requires_flag_lot_provision=True
+                )
+            ]
+        )
+    )
     assert score == max(0, 100 - 50 - 30 - 15)
     assert score == 5
 
@@ -153,6 +162,7 @@ def test_zoning_flag_lot_deducts_15():
 
 
 # ── _buildability_score ────────────────────────────────────────────────────────
+
 
 def test_buildability_data_gap_returns_50():
     score, exp = _buildability_score(_result(data_gap=True))
@@ -197,6 +207,7 @@ def test_buildability_multiple_flags_floor_at_zero():
 
 # ── _access_score ──────────────────────────────────────────────────────────────
 
+
 def test_access_no_flags_returns_100():
     score, _ = _access_score(_result())
     assert score == 100
@@ -223,6 +234,7 @@ def test_access_flag_lot_only_deducts_10():
 
 # ── _process_score ─────────────────────────────────────────────────────────────
 
+
 def test_process_no_scenarios_returns_zero():
     score, _ = _process_score(_result(scenarios=[]))
     assert score == 0
@@ -242,6 +254,7 @@ def test_process_planning_commission_returns_50():
 
 # ── _financial_score ───────────────────────────────────────────────────────────
 
+
 def test_financial_returns_50_placeholder():
     score, exp = _financial_score()
     assert score == 50
@@ -249,6 +262,7 @@ def test_financial_returns_50_placeholder():
 
 
 # ── _recommend ─────────────────────────────────────────────────────────────────
+
 
 def test_recommend_data_gap_is_unlikely():
     assert _recommend(_result(data_gap=True), 80) == Recommendation.UNLIKELY
@@ -284,18 +298,21 @@ def test_recommend_overall_30_to_49_is_unlikely():
 
 # ── Integration: score maps to recommendation ──────────────────────────────────
 
+
 def test_high_quality_parcel_gets_pursue():
     # clean parcel: no flags, admin minor, no variance/rezone
-    result = score_result(_result(scenarios=[_scenario(
-        tier=SubdivisionReviewTier.ADMINISTRATIVE_MINOR
-    )]))
+    result = score_result(
+        _result(scenarios=[_scenario(tier=SubdivisionReviewTier.ADMINISTRATIVE_MINOR)])
+    )
     assert result.recommendation == Recommendation.PURSUE
     assert result.overall >= 70
 
 
 def test_disqualified_parcel_gets_not_feasible():
-    result = score_result(_result(
-        scenarios=[],
-        disqualifying_flags=[_flag(RiskCategory.ZONING_AREA_SHORTFALL)],
-    ))
+    result = score_result(
+        _result(
+            scenarios=[],
+            disqualifying_flags=[_flag(RiskCategory.ZONING_AREA_SHORTFALL)],
+        )
+    )
     assert result.recommendation == Recommendation.NOT_FEASIBLE

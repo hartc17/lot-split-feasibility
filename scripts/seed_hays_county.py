@@ -7,6 +7,7 @@ Run once after `alembic upgrade head`:
 
 Safe to re-run — skips insert if the jurisdiction already exists.
 """
+
 import os
 import sys
 
@@ -14,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from sqlalchemy import create_engine, select
@@ -66,12 +68,12 @@ KYLE_TX = dict(
         "R-1-1": "R-1-1",
         "R-1-2": "R-1-2",
         "R-1-3": "R-1-3",
-        "R1-1":  "R-1-1",
-        "R1-2":  "R-1-2",
-        "R1-3":  "R-1-3",
-        "UE":    "UE",
-        "A":     "A",
-        "AG":    "A",
+        "R1-1": "R-1-1",
+        "R1-2": "R-1-2",
+        "R1-3": "R-1-3",
+        "UE": "UE",
+        "A": "A",
+        "AG": "A",
     },
 )
 

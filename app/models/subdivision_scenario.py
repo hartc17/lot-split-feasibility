@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -18,7 +19,10 @@ class SubdivisionScenario(Base):
     num_resulting_lots: Mapped[int] = mapped_column(Integer, nullable=False)
     lot_layout_type: Mapped[str] = mapped_column(
         Enum(
-            "SIMPLE_HALVE", "FRONTAGE_STRIP", "FLAG_LOT", "UNEVEN_SPLIT",
+            "SIMPLE_HALVE",
+            "FRONTAGE_STRIP",
+            "FLAG_LOT",
+            "UNEVEN_SPLIT",
             name="lot_layout_type_enum",
         ),
         nullable=False,
@@ -28,10 +32,13 @@ class SubdivisionScenario(Base):
     meets_min_frontage: Mapped[bool] = mapped_column(Boolean, nullable=False)
     requires_variance: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     requires_rezone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    requires_flag_lot_provision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    requires_flag_lot_provision: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
     subdivision_review_tier: Mapped[str] = mapped_column(
         Enum(
-            "ADMINISTRATIVE_MINOR", "PLANNING_COMMISSION_MAJOR",
+            "ADMINISTRATIVE_MINOR",
+            "PLANNING_COMMISSION_MAJOR",
             name="subdivision_review_tier_enum",
         ),
         nullable=False,
@@ -39,4 +46,4 @@ class SubdivisionScenario(Base):
     engine_version: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    parcel: Mapped["Parcel"] = relationship(back_populates="subdivision_scenarios")  # noqa: F821
+    parcel: Mapped[Parcel] = relationship(back_populates="subdivision_scenarios")  # noqa: F821

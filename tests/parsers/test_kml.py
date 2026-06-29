@@ -1,4 +1,5 @@
 """Tests for KML parser."""
+
 import pytest
 from shapely.geometry import Polygon
 
@@ -50,5 +51,5 @@ def test_parse_kml_no_geometry_raises():
 
 
 def test_parse_kml_empty_bytes_raises():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         parse_kml(b"")

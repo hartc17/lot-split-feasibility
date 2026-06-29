@@ -22,6 +22,7 @@ const FIELDS = [
   { key: 'requires_public_road_frontage',label: 'Requires public road frontage', type: 'checkbox', xs: 12, default: true },
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components -- ZONING_DEFAULTS is derived from FIELDS defined in this file; moving it out would split the schema
 export const ZONING_DEFAULTS = Object.fromEntries(FIELDS.map((f) => [f.key, f.default]));
 const REQUIRED = FIELDS.filter((f) => f.required).map((f) => f.key);
 

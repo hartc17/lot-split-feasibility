@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -33,5 +34,5 @@ class Jurisdiction(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    zoning_districts: Mapped[list["ZoningDistrict"]] = relationship(back_populates="jurisdiction")  # noqa: F821
-    parcels: Mapped[list["Parcel"]] = relationship(back_populates="jurisdiction")  # noqa: F821
+    zoning_districts: Mapped[list[ZoningDistrict]] = relationship(back_populates="jurisdiction")  # noqa: F821
+    parcels: Mapped[list[Parcel]] = relationship(back_populates="jurisdiction")  # noqa: F821

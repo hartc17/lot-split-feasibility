@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import uuid
 import logging
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -36,7 +36,8 @@ def resolve_zoning_district_id(
     if not canonical_code:
         logger.debug(
             "No zoning code mapping for raw='%s' in jurisdiction '%s'",
-            zoning_code_raw, jurisdiction.name,
+            zoning_code_raw,
+            jurisdiction.name,
         )
         return None
 
@@ -51,7 +52,9 @@ def resolve_zoning_district_id(
         logger.debug(
             "Raw code '%s' maps to canonical '%s' but no ZoningDistrict row found "
             "for jurisdiction '%s'",
-            zoning_code_raw, canonical_code, jurisdiction.name,
+            zoning_code_raw,
+            canonical_code,
+            jurisdiction.name,
         )
 
     return district_id

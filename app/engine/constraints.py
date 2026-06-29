@@ -36,20 +36,17 @@ def _lot_constraint_flags(
 
     coverage = overlap.area / lot_geometry.area
 
-    if (constraint.severity == ConstraintSeverity.BLOCKING
-            and coverage >= _BLOCKING_COVERAGE_THRESHOLD):
+    if (
+        constraint.severity == ConstraintSeverity.BLOCKING
+        and coverage >= _BLOCKING_COVERAGE_THRESHOLD
+    ):
         return True, None
 
-    risk_cat = _CONSTRAINT_TO_RISK_CATEGORY.get(
-        constraint.constraint_type, RiskCategory.DATA_GAP
-    )
+    risk_cat = _CONSTRAINT_TO_RISK_CATEGORY.get(constraint.constraint_type, RiskCategory.DATA_GAP)
     flag = RiskFlag(
         category=risk_cat,
         severity=constraint.severity,
-        message=(
-            f"{constraint.constraint_type.value} covers "
-            f"{coverage:.0%} of one resulting lot."
-        ),
+        message=(f"{constraint.constraint_type.value} covers {coverage:.0%} of one resulting lot."),
     )
     return False, flag
 

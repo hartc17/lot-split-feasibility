@@ -1,5 +1,5 @@
 """Tests for ArcGISParcelAdapter — all HTTP is mocked, no network calls."""
-import json
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,13 +15,15 @@ from app.adapters.base import FieldMapping, JurisdictionConfig
 # A tiny square polygon near Kyle TX in EPSG:4326
 _POLYGON_GEOJSON = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.880, 29.990],
-        [-97.879, 29.990],
-        [-97.879, 29.991],
-        [-97.880, 29.991],
-        [-97.880, 29.990],
-    ]],
+    "coordinates": [
+        [
+            [-97.880, 29.990],
+            [-97.879, 29.990],
+            [-97.879, 29.991],
+            [-97.880, 29.991],
+            [-97.880, 29.990],
+        ]
+    ],
 }
 
 _FEATURE = {
@@ -73,6 +75,7 @@ def _mock_response(data: dict, status_code: int = 200) -> MagicMock:
 # Tests
 # ------------------------------------------------------------------
 
+
 def test_fetch_by_apn_returns_record(adapter, mocker):
     mocker.patch.object(adapter._session, "get", return_value=_mock_response(_FEATURE_COLLECTION))
     record = adapter.fetch_by_apn("R102610")
@@ -90,7 +93,8 @@ def test_fetch_by_apn_returns_none_when_no_features(adapter, mocker):
 
 def test_fetch_by_apn_raises_on_http_error(adapter, mocker):
     mocker.patch.object(
-        adapter._session, "get",
+        adapter._session,
+        "get",
         return_value=_mock_response({}, status_code=500),
     )
     with pytest.raises(requests.HTTPError):
@@ -99,7 +103,8 @@ def test_fetch_by_apn_raises_on_http_error(adapter, mocker):
 
 def test_fetch_by_apn_builds_correct_query_url(adapter, mocker):
     mock_get = mocker.patch.object(
-        adapter._session, "get",
+        adapter._session,
+        "get",
         return_value=_mock_response(_FEATURE_COLLECTION),
     )
     adapter.fetch_by_apn("R102610")
@@ -122,7 +127,8 @@ def test_fetch_by_location_returns_record(adapter, mocker):
 
 def test_fetch_by_location_builds_point_query(adapter, mocker):
     mock_get = mocker.patch.object(
-        adapter._session, "get",
+        adapter._session,
+        "get",
         return_value=_mock_response(_FEATURE_COLLECTION),
     )
     adapter.fetch_by_location(lat=29.990, lon=-97.880)
@@ -139,6 +145,7 @@ def test_multiple_features_uses_first_and_warns(adapter, mocker, caplog):
     }
     mocker.patch.object(adapter._session, "get", return_value=_mock_response(two_features))
     import logging
+
     with caplog.at_level(logging.WARNING, logger="app.adapters.arcgis"):
         record = adapter.fetch_by_apn("R102610")
     assert record.apn == "R102610"
@@ -172,4 +179,5 @@ def test_parse_feature_with_optional_fields(mocker):
     assert record.address_normalized == "123 Main St"
     assert record.assessed_land_value == pytest.approx(85000.50)
     from datetime import date
+
     assert record.last_sale_date == date(2023, 3, 15)

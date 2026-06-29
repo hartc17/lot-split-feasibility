@@ -1,7 +1,7 @@
 from shapely.geometry import LineString, Polygon
 
 from app.engine.types import ParcelGeometryInput, ZoningRulesInput
-from app.parsers.projection import get_utm_epsg, project_to_feet
+from app.parsers.projection import project_to_feet
 
 
 def extract_edges(polygon: Polygon, edge_indices: list[int]) -> LineString:

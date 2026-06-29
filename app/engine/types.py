@@ -1,19 +1,19 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from shapely.geometry import LineString, Polygon
 
 
-class LotLayoutType(str, Enum):
+class LotLayoutType(StrEnum):
     SIMPLE_HALVE = "SIMPLE_HALVE"
     FRONTAGE_STRIP = "FRONTAGE_STRIP"
     FLAG_LOT = "FLAG_LOT"
     UNEVEN_SPLIT = "UNEVEN_SPLIT"
 
 
-class ConstraintType(str, Enum):
+class ConstraintType(StrEnum):
     FLOOD_ZONE = "FLOOD_ZONE"
     WETLAND = "WETLAND"
     STEEP_SLOPE = "STEEP_SLOPE"
@@ -23,19 +23,19 @@ class ConstraintType(str, Enum):
     OTHER_OVERLAY = "OTHER_OVERLAY"
 
 
-class ConstraintSeverity(str, Enum):
+class ConstraintSeverity(StrEnum):
     BLOCKING = "BLOCKING"
     SIGNIFICANT = "SIGNIFICANT"
     MINOR = "MINOR"
     INFORMATIONAL = "INFORMATIONAL"
 
 
-class SubdivisionReviewTier(str, Enum):
+class SubdivisionReviewTier(StrEnum):
     ADMINISTRATIVE_MINOR = "ADMINISTRATIVE_MINOR"
     PLANNING_COMMISSION_MAJOR = "PLANNING_COMMISSION_MAJOR"
 
 
-class RiskCategory(str, Enum):
+class RiskCategory(StrEnum):
     ZONING_AREA_SHORTFALL = "ZONING_AREA_SHORTFALL"
     ZONING_FRONTAGE_SHORTFALL = "ZONING_FRONTAGE_SHORTFALL"
     REQUIRES_VARIANCE = "REQUIRES_VARIANCE"
@@ -58,7 +58,7 @@ class RiskFlag:
     category: RiskCategory
     severity: ConstraintSeverity
     message: str
-    source_citation: Optional[str] = None
+    source_citation: str | None = None
 
 
 @dataclass
@@ -68,15 +68,17 @@ class ParcelGeometryInput:
     All coordinates must be in a projected CRS with units in US survey feet.
     The caller (adapter layer) is responsible for projecting from lat/lon.
     """
+
     boundary: Polygon
-    frontage_edge: LineString      # the road-facing edge of the parcel
-    zoning_district_code: Optional[str]  # None triggers DATA_GAP
-    multi_district: bool = False   # parcel straddles two zoning boundaries
+    frontage_edge: LineString  # the road-facing edge of the parcel
+    zoning_district_code: str | None  # None triggers DATA_GAP
+    multi_district: bool = False  # parcel straddles two zoning boundaries
 
 
 @dataclass
 class ZoningRulesInput:
     """Dimensional standards for the parcel's zoning district. All distances in feet."""
+
     min_lot_area_sqft: int
     min_lot_width_ft: int
     setback_front_ft: int
@@ -84,16 +86,17 @@ class ZoningRulesInput:
     setback_rear_ft: int
     requires_public_road_frontage: bool
     allows_flag_lots: bool
-    minor_subdivision_threshold: int   # lots <= this = ADMINISTRATIVE_MINOR
-    min_lot_depth_ft: Optional[int] = None
-    max_density_units_per_acre: Optional[float] = None
-    min_road_frontage_ft: Optional[int] = None  # if None, defaults to min_lot_width_ft
-    flag_lot_min_access_strip_ft: Optional[int] = None
+    minor_subdivision_threshold: int  # lots <= this = ADMINISTRATIVE_MINOR
+    min_lot_depth_ft: int | None = None
+    max_density_units_per_acre: float | None = None
+    min_road_frontage_ft: int | None = None  # if None, defaults to min_lot_width_ft
+    flag_lot_min_access_strip_ft: int | None = None
 
 
 @dataclass
 class StructureInput:
     """Existing structure footprint. Coordinates in same projected CRS (feet) as parcel."""
+
     footprint: Polygon
 
 
@@ -103,6 +106,7 @@ class ConstraintInput:
     One environmental/physical constraint intersecting the parcel.
     geometry is the portion of the constraint layer that overlaps the parcel.
     """
+
     constraint_type: ConstraintType
     severity: ConstraintSeverity
     geometry: Polygon
@@ -112,10 +116,10 @@ class ConstraintInput:
 class LotResult:
     geometry: Polygon
     area_sqft: float
-    frontage_ft: float          # width along road; for flag lot = access strip width
-    buildable_width_ft: float   # width of the buildable portion (full width for flag lot body)
+    frontage_ft: float  # width along road; for flag lot = access strip width
+    buildable_width_ft: float  # width of the buildable portion (full width for flag lot body)
     buildable_depth_ft: float
-    has_direct_frontage: bool   # False for flag lot rear portion
+    has_direct_frontage: bool  # False for flag lot rear portion
     meets_min_lot_size: bool
     meets_min_frontage: bool
     has_buildable_envelope: bool
@@ -136,6 +140,6 @@ class ScenarioResult:
 @dataclass
 class SubdivisionFeasibilityResult:
     max_theoretical_lots: int
-    scenarios: list[ScenarioResult]          # ranked best-first
-    disqualifying_flags: list[RiskFlag]      # reasons no scenarios could be generated
-    data_gap: bool                           # True if engine couldn't run due to missing data
+    scenarios: list[ScenarioResult]  # ranked best-first
+    disqualifying_flags: list[RiskFlag]  # reasons no scenarios could be generated
+    data_gap: bool  # True if engine couldn't run due to missing data

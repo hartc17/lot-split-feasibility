@@ -11,8 +11,9 @@ if TYPE_CHECKING:
 @dataclass
 class ParcelRecord:
     """Normalized fields from a county data source, before DB upsert."""
+
     apn: str
-    geometry_geojson: dict          # GeoJSON Polygon, EPSG:4326
+    geometry_geojson: dict  # GeoJSON Polygon, EPSG:4326
     address_normalized: str | None
     zoning_code_raw: str | None
     owner_name: str | None
@@ -30,6 +31,7 @@ class FieldMapping:
     Maps canonical field roles to the county GIS layer's actual attribute names.
     None means the field is absent in this layer.
     """
+
     apn: str
     address: str | None = None
     zoning_code: str | None = None
@@ -58,6 +60,7 @@ class FieldMapping:
 @dataclass
 class JurisdictionConfig:
     """Everything the generic adapter needs to query one jurisdiction's ArcGIS service."""
+
     jurisdiction_name: str
     feature_server_url: str
     field_mapping: FieldMapping

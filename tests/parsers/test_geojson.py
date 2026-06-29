@@ -1,4 +1,5 @@
 """Tests for GeoJSON parser."""
+
 import pytest
 from shapely.geometry import Polygon
 
@@ -47,7 +48,15 @@ def test_parse_multipolygon_returns_largest():
         "type": "MultiPolygon",
         "coordinates": [
             [_POLYGON_COORDS],
-            [[[-97.87, 29.99], [-97.869, 29.99], [-97.869, 29.991], [-97.87, 29.991], [-97.87, 29.99]]],
+            [
+                [
+                    [-97.87, 29.99],
+                    [-97.869, 29.99],
+                    [-97.869, 29.991],
+                    [-97.87, 29.991],
+                    [-97.87, 29.99],
+                ]
+            ],
         ],
     }
     result = parse_geojson(multi)

@@ -1,4 +1,3 @@
-import pytest
 from shapely.geometry import Polygon
 
 from app.engine.constraints import apply_constraints
@@ -98,6 +97,7 @@ def test_fixture6_floodway_removes_scenarios_with_flood_exposure():
     """Both resulting lots in a side-by-side split extend into the rear floodway."""
     from app.engine.strategies.simple_halve import run_simple_halve
     from tests.fixtures.parcels import fixture_6_flood_zone
+
     parcel, zoning, structures, constraints = fixture_6_flood_zone()
     scenarios = run_simple_halve(parcel, zoning, structures)
     filtered = apply_constraints(scenarios, constraints)
@@ -105,5 +105,4 @@ def test_fixture6_floodway_removes_scenarios_with_flood_exposure():
         for lot in scenario.resulting_lots:
             floodway = constraints[0]
             overlap = lot.geometry.intersection(floodway.geometry)
-            assert overlap.area / lot.area_sqft < 0.5, \
-                "Remaining lot has >50% flood exposure"
+            assert overlap.area / lot.area_sqft < 0.5, "Remaining lot has >50% flood exposure"

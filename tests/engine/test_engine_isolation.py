@@ -1,6 +1,6 @@
 """Verify the engine module imports no DB, adapter, or I/O modules."""
+
 import ast
-import os
 from pathlib import Path
 
 

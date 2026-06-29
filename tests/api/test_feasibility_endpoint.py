@@ -1,5 +1,5 @@
 """Tests for POST /v1/feasibility — no DB required."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 from app.api.app import app
@@ -8,13 +8,15 @@ client = TestClient(app)
 
 _POLYGON = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.88000, 29.99000],
-        [-97.87900, 29.99000],
-        [-97.87900, 29.99200],
-        [-97.88000, 29.99200],
-        [-97.88000, 29.99000],
-    ]],
+    "coordinates": [
+        [
+            [-97.88000, 29.99000],
+            [-97.87900, 29.99000],
+            [-97.87900, 29.99200],
+            [-97.88000, 29.99200],
+            [-97.88000, 29.99000],
+        ]
+    ],
 }
 
 _ZONING = {
@@ -82,13 +84,15 @@ def test_feasibility_large_parcel_returns_multiple_scenarios():
     # ~4-acre parcel — should yield multiple split scenarios
     large_polygon = {
         "type": "Polygon",
-        "coordinates": [[
-            [-97.88000, 29.99000],
-            [-97.87700, 29.99000],
-            [-97.87700, 29.99300],
-            [-97.88000, 29.99300],
-            [-97.88000, 29.99000],
-        ]],
+        "coordinates": [
+            [
+                [-97.88000, 29.99000],
+                [-97.87700, 29.99000],
+                [-97.87700, 29.99300],
+                [-97.88000, 29.99300],
+                [-97.88000, 29.99000],
+            ]
+        ],
     }
     body = {**_VALID_BODY, "geometry": large_polygon}
     resp = client.post("/v1/feasibility", json=body)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from app.engine.types import (
     RiskCategory,
@@ -10,7 +10,7 @@ from app.engine.types import (
 )
 
 
-class Recommendation(str, Enum):
+class Recommendation(StrEnum):
     PURSUE = "PURSUE"
     PURSUE_WITH_CAUTION = "PURSUE_WITH_CAUTION"
     UNLIKELY = "UNLIKELY"
@@ -19,8 +19,8 @@ class Recommendation(str, Enum):
 
 @dataclass
 class SubScore:
-    score: int        # 0–100
-    weight: float     # contribution weight (sums to 1.0 across all sub-scores)
+    score: int  # 0–100
+    weight: float  # contribution weight (sums to 1.0 across all sub-scores)
     explanation: str  # one sentence shown in the report
 
 
@@ -32,26 +32,26 @@ class FeasibilityScore:
 
 
 # ── Weights ────────────────────────────────────────────────────────────────────
-_W_ZONING       = 0.35
+_W_ZONING = 0.35
 _W_BUILDABILITY = 0.25
-_W_ACCESS       = 0.15
-_W_PROCESS      = 0.10
-_W_FINANCIAL    = 0.15  # deferred until comps data is available
+_W_ACCESS = 0.15
+_W_PROCESS = 0.10
+_W_FINANCIAL = 0.15  # deferred until comps data is available
 
 
 def score_result(result: SubdivisionFeasibilityResult) -> FeasibilityScore:
-    zoning_s,      zoning_exp      = _zoning_score(result)
-    buildability_s, build_exp      = _buildability_score(result)
-    access_s,      access_exp      = _access_score(result)
-    process_s,     process_exp     = _process_score(result)
-    financial_s,   financial_exp   = _financial_score()
+    zoning_s, zoning_exp = _zoning_score(result)
+    buildability_s, build_exp = _buildability_score(result)
+    access_s, access_exp = _access_score(result)
+    process_s, process_exp = _process_score(result)
+    financial_s, financial_exp = _financial_score()
 
     overall = round(
-        zoning_s      * _W_ZONING +
-        buildability_s * _W_BUILDABILITY +
-        access_s      * _W_ACCESS +
-        process_s     * _W_PROCESS +
-        financial_s   * _W_FINANCIAL,
+        zoning_s * _W_ZONING
+        + buildability_s * _W_BUILDABILITY
+        + access_s * _W_ACCESS
+        + process_s * _W_PROCESS
+        + financial_s * _W_FINANCIAL,
     )
 
     recommendation = _recommend(result, overall)
@@ -60,16 +60,17 @@ def score_result(result: SubdivisionFeasibilityResult) -> FeasibilityScore:
         overall=overall,
         recommendation=recommendation,
         sub_scores={
-            "zoning_compliance":    SubScore(zoning_s,      _W_ZONING,       zoning_exp),
+            "zoning_compliance": SubScore(zoning_s, _W_ZONING, zoning_exp),
             "physical_buildability": SubScore(buildability_s, _W_BUILDABILITY, build_exp),
-            "access_utility":       SubScore(access_s,      _W_ACCESS,       access_exp),
-            "process_complexity":   SubScore(process_s,     _W_PROCESS,      process_exp),
-            "financial_upside":     SubScore(financial_s,   _W_FINANCIAL,    financial_exp),
+            "access_utility": SubScore(access_s, _W_ACCESS, access_exp),
+            "process_complexity": SubScore(process_s, _W_PROCESS, process_exp),
+            "financial_upside": SubScore(financial_s, _W_FINANCIAL, financial_exp),
         },
     )
 
 
 # ── Sub-score functions ────────────────────────────────────────────────────────
+
 
 def _zoning_score(result: SubdivisionFeasibilityResult) -> tuple[int, str]:
     if result.data_gap:
@@ -170,7 +171,10 @@ def _process_score(result: SubdivisionFeasibilityResult) -> tuple[int, str]:
 
     primary = result.scenarios[0]
     if primary.subdivision_review_tier == SubdivisionReviewTier.ADMINISTRATIVE_MINOR:
-        return 100, "Qualifies for administrative minor subdivision — no planning commission or public hearing required."
+        return (
+            100,
+            "Qualifies for administrative minor subdivision — no planning commission or public hearing required.",
+        )
     return 50, "Requires planning commission review — public hearing and longer approval timeline."
 
 
@@ -180,6 +184,7 @@ def _financial_score() -> tuple[int, str]:
 
 
 # ── Recommendation ─────────────────────────────────────────────────────────────
+
 
 def _recommend(result: SubdivisionFeasibilityResult, overall: int) -> Recommendation:
     if result.data_gap:
@@ -197,6 +202,7 @@ def _recommend(result: SubdivisionFeasibilityResult, overall: int) -> Recommenda
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _flag_categories(flags) -> set[RiskCategory]:
     return {f.category for f in flags}

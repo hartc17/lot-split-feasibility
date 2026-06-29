@@ -52,16 +52,18 @@ def _check_flag_lot_would_help(
     """
     frontage = parcel.frontage_edge.length
     if frontage < 2 * zoning.min_lot_width_ft:
-        flags.append(RiskFlag(
-            category=RiskCategory.REQUIRES_FLAG_LOT_PROVISION_NOT_ALLOWED,
-            severity=ConstraintSeverity.BLOCKING,
-            message=(
-                f"This parcel's frontage ({frontage:.0f} ft) is too narrow for a "
-                f"side-by-side split (requires {2 * zoning.min_lot_width_ft:.0f} ft). "
-                "A flag lot arrangement could provide access to a rear lot, but flag "
-                "lots are not permitted in this zoning district as-of-right."
-            ),
-        ))
+        flags.append(
+            RiskFlag(
+                category=RiskCategory.REQUIRES_FLAG_LOT_PROVISION_NOT_ALLOWED,
+                severity=ConstraintSeverity.BLOCKING,
+                message=(
+                    f"This parcel's frontage ({frontage:.0f} ft) is too narrow for a "
+                    f"side-by-side split (requires {2 * zoning.min_lot_width_ft:.0f} ft). "
+                    "A flag lot arrangement could provide access to a rear lot, but flag "
+                    "lots are not permitted in this zoning district as-of-right."
+                ),
+            )
+        )
 
 
 def calculate_subdivision_scenarios(

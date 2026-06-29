@@ -1,4 +1,5 @@
 """Tests for engine input builders."""
+
 import pytest
 from shapely.geometry import LineString, Polygon
 
@@ -13,13 +14,15 @@ from app.parsers.geojson import parse_geojson
 
 _POLYGON_4326 = {
     "type": "Polygon",
-    "coordinates": [[
-        [-97.88000, 29.99000],
-        [-97.87934, 29.99000],
-        [-97.87934, 29.99057],
-        [-97.88000, 29.99057],
-        [-97.88000, 29.99000],
-    ]],
+    "coordinates": [
+        [
+            [-97.88000, 29.99000],
+            [-97.87934, 29.99000],
+            [-97.87934, 29.99057],
+            [-97.88000, 29.99057],
+            [-97.88000, 29.99000],
+        ]
+    ],
 }
 
 _ZONING_DICT = {
@@ -34,6 +37,7 @@ _ZONING_DICT = {
 
 
 # --- extract_edges / extract_edge ---
+
 
 def test_extract_edge_returns_linestring():
     poly_4326 = parse_geojson(_POLYGON_4326)
@@ -89,6 +93,7 @@ def test_extract_edges_out_of_range_raises():
 
 # --- build_parcel_geometry_input ---
 
+
 def test_build_parcel_geometry_input_returns_correct_type():
     poly_4326 = parse_geojson(_POLYGON_4326)
     result = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0])
@@ -114,7 +119,7 @@ def test_build_parcel_geometry_input_invalid_edge_raises():
 def test_build_parcel_geometry_input_multi_edge_merges():
     poly_4326 = parse_geojson(_POLYGON_4326)
     single = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0])
-    multi  = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0, 1])
+    multi = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0, 1])
     assert multi.frontage_edge.length > single.frontage_edge.length
 
 
@@ -125,6 +130,7 @@ def test_build_parcel_geometry_input_passes_district_code():
 
 
 # --- build_zoning_rules_input ---
+
 
 def test_build_zoning_rules_input_returns_correct_type():
     result = build_zoning_rules_input(_ZONING_DICT)

@@ -1,8 +1,8 @@
-import pytest
-from app.engine.strategies.simple_halve import run_simple_halve, run_frontage_strip
-from app.engine.strategies.flag_lot import run_flag_lot
-from app.engine.types import LotLayoutType, ParcelGeometryInput, ZoningRulesInput
 from shapely.geometry import LineString, Polygon
+
+from app.engine.strategies.flag_lot import run_flag_lot
+from app.engine.strategies.simple_halve import run_frontage_strip, run_simple_halve
+from app.engine.types import LotLayoutType, ParcelGeometryInput, ZoningRulesInput
 from tests.fixtures.parcels import (
     fixture_1_clean_split,
     fixture_2_area_shortfall,

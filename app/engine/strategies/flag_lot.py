@@ -115,11 +115,17 @@ def run_flag_lot(
         has_buildable_envelope=has_buildable_envelope(rear_lot, zoning, existing_structures),
     )
 
-    if not (front_result.meets_min_lot_size and front_result.meets_min_frontage
-            and front_result.has_buildable_envelope):
+    if not (
+        front_result.meets_min_lot_size
+        and front_result.meets_min_frontage
+        and front_result.has_buildable_envelope
+    ):
         return []
-    if not (rear_result.meets_min_lot_size and rear_result.meets_min_frontage
-            and rear_result.has_buildable_envelope):
+    if not (
+        rear_result.meets_min_lot_size
+        and rear_result.meets_min_frontage
+        and rear_result.has_buildable_envelope
+    ):
         return []
 
     scenario = ScenarioResult(

@@ -88,7 +88,7 @@ export default function MapView({
   useEffect(() => {
     selectedIdxRef.current = selectedEdgeIndices;
     edgeLayerRef.current?.changed();
-  }, [selectedEdgeIndices]);
+  }, [selectedEdgeIndices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync parcel list to map (add/remove features); runs before active-parcel effect
   useEffect(() => {
@@ -140,7 +140,7 @@ export default function MapView({
     });
     map.addInteraction(modify);
     modifyInteractionRef.current = modify;
-  }, [editMode, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editMode, activeParcelId]);
 
   // Re-sync edge layer when the active parcel's edges change (e.g. after shape edit + reparse)
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function MapView({
       ? parcelFeaturesRef.current[activeParcelId]
       : null;
     updateEdges(activeParcel?.edges ?? [], activeFeature);
-  }, [activeParcel?.edges, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeParcel?.edges, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps -- updateEdges is stable
 
   // Draw interaction — stays active after each drawend for multi-draw
   useEffect(() => {

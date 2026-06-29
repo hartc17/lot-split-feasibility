@@ -8,7 +8,7 @@ def parse_shapefile_zip(zip_bytes: bytes) -> Polygon:
     """Accept a zip containing .shp/.shx/.dbf (and optionally .prj).
     Returns the first feature's polygon geometry."""
     try:
-        import fiona
+        import fiona  # noqa: F401 — availability guard; actual use is `from fiona.io import MemoryFile` below
     except ImportError as exc:
         raise ImportError("fiona is required for Shapefile parsing") from exc
 

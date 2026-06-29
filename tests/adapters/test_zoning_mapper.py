@@ -1,8 +1,7 @@
 """Tests for zoning code mapper — no DB connection required (mocked session)."""
+
 import uuid
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.adapters.zoning_mapper import resolve_zoning_district_id
 
@@ -24,6 +23,7 @@ def _make_session(district_id: uuid.UUID | None = None) -> MagicMock:
 
 
 # ------------------------------------------------------------------
+
 
 def test_none_input_returns_none():
     j = _make_jurisdiction({"R-1-2": "R-1-2"})

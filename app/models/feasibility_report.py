@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -17,7 +18,11 @@ class FeasibilityReport(Base):
     requested_by: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(
         Enum(
-            "PENDING", "DATA_GATHERING", "CALCULATING", "COMPLETE", "FAILED",
+            "PENDING",
+            "DATA_GATHERING",
+            "CALCULATING",
+            "COMPLETE",
+            "FAILED",
             name="report_status_enum",
         ),
         nullable=False,
@@ -26,7 +31,10 @@ class FeasibilityReport(Base):
     overall_score: Mapped[int | None] = mapped_column(Integer)
     recommendation: Mapped[str | None] = mapped_column(
         Enum(
-            "PURSUE", "PURSUE_WITH_CAUTION", "UNLIKELY", "NOT_FEASIBLE",
+            "PURSUE",
+            "PURSUE_WITH_CAUTION",
+            "UNLIKELY",
+            "NOT_FEASIBLE",
             name="recommendation_enum",
         ),
     )
@@ -38,8 +46,10 @@ class FeasibilityReport(Base):
     generated_pdf_url: Mapped[str | None] = mapped_column(Text)
     generated_html_url: Mapped[str | None] = mapped_column(Text)
     error_detail: Mapped[str | None] = mapped_column(Text)
-    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    parcel: Mapped["Parcel"] = relationship(back_populates="feasibility_reports")  # noqa: F821
-    primary_scenario: Mapped["SubdivisionScenario | None"] = relationship()  # noqa: F821
+    parcel: Mapped[Parcel] = relationship(back_populates="feasibility_reports")  # noqa: F821
+    primary_scenario: Mapped[SubdivisionScenario | None] = relationship()  # noqa: F821

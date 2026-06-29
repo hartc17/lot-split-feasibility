@@ -55,7 +55,9 @@ class ArcGISParcelAdapter:
         if len(features) > 1:
             logger.warning(
                 "ArcGIS returned %d features; using first. url=%s params=%s",
-                len(features), url, params,
+                len(features),
+                url,
+                params,
             )
         return self._parse_feature(features[0])
 

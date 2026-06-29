@@ -39,10 +39,10 @@ def _structure_requires_lot_line_setback(
     if min_t > max_t:
         return True  # parcel too narrow for any split regardless
 
-    t_for_left = struct_right + side_setback_ft   # split must be >= this for house in left lot
-    t_for_right = struct_left - side_setback_ft   # split must be <= this for house in right lot
+    t_for_left = struct_right + side_setback_ft  # split must be >= this for house in left lot
+    t_for_right = struct_left - side_setback_ft  # split must be <= this for house in right lot
 
-    can_put_house_in_left = t_for_left <= max_t   # some t >= t_for_left exists in [min_t, max_t]
+    can_put_house_in_left = t_for_left <= max_t  # some t >= t_for_left exists in [min_t, max_t]
     can_put_house_in_right = t_for_right >= min_t  # some t <= t_for_right exists in [min_t, max_t]
 
     return not (can_put_house_in_left or can_put_house_in_right)
@@ -61,32 +61,36 @@ def check_eligibility(
 
     # 1. Parcel straddles two zoning districts
     if parcel.multi_district:
-        flags.append(RiskFlag(
-            category=RiskCategory.MULTI_DISTRICT_PARCEL,
-            severity=ConstraintSeverity.BLOCKING,
-            message=(
-                "This parcel appears to straddle two zoning districts. "
-                "Automated analysis cannot determine which district's rules apply. "
-                "Manual review by a land-use professional is required."
-            ),
-        ))
+        flags.append(
+            RiskFlag(
+                category=RiskCategory.MULTI_DISTRICT_PARCEL,
+                severity=ConstraintSeverity.BLOCKING,
+                message=(
+                    "This parcel appears to straddle two zoning districts. "
+                    "Automated analysis cannot determine which district's rules apply. "
+                    "Manual review by a land-use professional is required."
+                ),
+            )
+        )
         return flags
 
     # 3. Area too small for any 2-lot split
     parcel_area = parcel.boundary.area
     required_area = 2 * zoning.min_lot_area_sqft
     if parcel_area < required_area:
-        flags.append(RiskFlag(
-            category=RiskCategory.ZONING_AREA_SHORTFALL,
-            severity=ConstraintSeverity.BLOCKING,
-            message=(
-                f"A 2-lot split requires at least {required_area:,.0f} sqft "
-                f"(2 × {zoning.min_lot_area_sqft:,.0f} sqft minimum lot size). "
-                f"This parcel is {parcel_area:,.0f} sqft — "
-                f"{required_area - parcel_area:,.0f} sqft short. "
-                "A variance would be required for any subdivision."
-            ),
-        ))
+        flags.append(
+            RiskFlag(
+                category=RiskCategory.ZONING_AREA_SHORTFALL,
+                severity=ConstraintSeverity.BLOCKING,
+                message=(
+                    f"A 2-lot split requires at least {required_area:,.0f} sqft "
+                    f"(2 × {zoning.min_lot_area_sqft:,.0f} sqft minimum lot size). "
+                    f"This parcel is {parcel_area:,.0f} sqft — "
+                    f"{required_area - parcel_area:,.0f} sqft short. "
+                    "A variance would be required for any subdivision."
+                ),
+            )
+        )
 
     # 4. Existing structure positioned to block any valid split along the frontage axis
     parcel_width = parcel.frontage_edge.length
@@ -95,14 +99,16 @@ def check_eligibility(
             if _structure_requires_lot_line_setback(
                 structure, parcel_width, zoning.setback_side_ft, zoning.min_lot_width_ft
             ):
-                flags.append(RiskFlag(
-                    category=RiskCategory.EXISTING_STRUCTURE_CONFLICT,
-                    severity=ConstraintSeverity.BLOCKING,
-                    message=(
-                        "An existing structure is positioned such that no lot split line "
-                        "can satisfy the required side setback on both resulting lots without "
-                        "requiring removal or relocation of the structure."
-                    ),
-                ))
+                flags.append(
+                    RiskFlag(
+                        category=RiskCategory.EXISTING_STRUCTURE_CONFLICT,
+                        severity=ConstraintSeverity.BLOCKING,
+                        message=(
+                            "An existing structure is positioned such that no lot split line "
+                            "can satisfy the required side setback on both resulting lots without "
+                            "requiring removal or relocation of the structure."
+                        ),
+                    )
+                )
 
     return flags

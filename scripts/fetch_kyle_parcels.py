@@ -15,20 +15,17 @@ lot) while small enough to be realistic single-family candidates.
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
+import pyproj
 import requests
 from shapely.geometry import shape
 from shapely.ops import transform
-import pyproj
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-FEATURE_SERVER = (
-    "https://gis.urbaneng.com/arcgis/rest/services/HaysCountyParcels/FeatureServer/0"
-)
+FEATURE_SERVER = "https://gis.urbaneng.com/arcgis/rest/services/HaysCountyParcels/FeatureServer/0"
 
 # Approximate bounding box for the City of Kyle, TX (WGS84)
 KYLE_BBOX = {
@@ -83,7 +80,7 @@ def main() -> None:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Querying Hays County GIS (Kyle bbox)…")
+    print("Querying Hays County GIS (Kyle bbox)…")
     features = fetch_parcels(args.count)
     print(f"  {len(features)} raw features returned")
 

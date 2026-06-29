@@ -1,12 +1,11 @@
-import pytest
+from app.engine.eligibility import check_eligibility
+from app.engine.types import RiskCategory
 from tests.fixtures.parcels import (
     fixture_1_clean_split,
     fixture_2_area_shortfall,
     fixture_5_structure_conflict,
     fixture_7_multi_district,
 )
-from app.engine.eligibility import check_eligibility
-from app.engine.types import RiskCategory
 
 
 def test_clean_parcel_passes_eligibility():
@@ -36,7 +35,6 @@ def test_multi_district_produces_flag():
     flags = check_eligibility(parcel, zoning, structures)
     categories = [f.category for f in flags]
     assert RiskCategory.MULTI_DISTRICT_PARCEL in categories
-
 
 
 def test_structure_conflict_produces_flag():

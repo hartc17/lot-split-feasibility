@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import io
-
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from shapely.geometry import Polygon, mapping
 
 from app.api.schemas import EdgeInfo, ParseResponse
 from app.parsers.geojson import parse_geojson
 from app.parsers.kml import parse_kml
-from app.parsers.projection import get_utm_epsg, project_to_feet
+from app.parsers.projection import project_to_feet
 from app.parsers.shapefile import parse_shapefile_zip
 
 router = APIRouter(tags=["parse"])
@@ -19,7 +17,7 @@ async def parse_geojson_endpoint(body: dict) -> ParseResponse:
     try:
         polygon_4326 = parse_geojson(body)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _build_parse_response(polygon_4326)
 
 
@@ -28,8 +26,8 @@ async def parse_kml_endpoint(file: UploadFile = File(...)) -> ParseResponse:
     kml_bytes = await file.read()
     try:
         polygon_4326 = parse_kml(kml_bytes)
-    except (ValueError, Exception) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _build_parse_response(polygon_4326)
 
 
@@ -38,8 +36,8 @@ async def parse_shapefile_endpoint(file: UploadFile = File(...)) -> ParseRespons
     zip_bytes = await file.read()
     try:
         polygon_4326 = parse_shapefile_zip(zip_bytes)
-    except (ValueError, Exception) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _build_parse_response(polygon_4326)
 
 

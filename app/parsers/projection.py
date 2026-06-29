@@ -35,10 +35,7 @@ def project_linestring_to_feet(line_4326: LineString, utm_epsg: str) -> LineStri
 
 def _scale(polygon: Polygon, factor: float) -> Polygon:
     exterior = [(x * factor, y * factor) for x, y in polygon.exterior.coords]
-    interiors = [
-        [(x * factor, y * factor) for x, y in ring.coords]
-        for ring in polygon.interiors
-    ]
+    interiors = [[(x * factor, y * factor) for x, y in ring.coords] for ring in polygon.interiors]
     return Polygon(exterior, interiors)
 
 
