@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   AppBar, Toolbar, Typography, Box, Divider, Alert,
 } from '@mui/material';
@@ -102,7 +102,6 @@ export default function App() {
       </AppBar>
 
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Map area */}
         <Box sx={{ flex: 1, position: 'relative' }}>
           <MapView
             polygon4326={polygon4326}
@@ -114,7 +113,6 @@ export default function App() {
           />
         </Box>
 
-        {/* Sidebar */}
         <Box
           sx={{
             width: 360,

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography, List, ListItemButton, ListItemText } from '@mui/material';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { SectionLabel, StatusChip, StepBox } from './shared';

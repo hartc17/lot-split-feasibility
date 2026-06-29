@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Typography, TextField, Checkbox, FormControlLabel,
   Button, Grid, CircularProgress,

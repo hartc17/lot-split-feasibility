@@ -13,12 +13,10 @@
  *   StepBox       — panel section wrapper with a disabled overlay
  */
 
-import React from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 
 // ── Color palette for StatusChip ─────────────────────────────────────────────
-// Add entries here when a new semantic color is needed. Keep in sync with any
-// Tailwind/design-token changes so the palette stays consistent.
+// Add entries here when a new semantic color is needed.
 
 const CHIP_COLORS = {
   green:  { bg: '#dcfce7', color: '#15803d' },
