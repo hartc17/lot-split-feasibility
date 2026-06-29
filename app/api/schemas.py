@@ -18,7 +18,9 @@ class ZoningRulesRequest(BaseModel):
 
 class FeasibilityRequest(BaseModel):
     geometry: dict = Field(..., description="GeoJSON Polygon (EPSG:4326)")
-    frontage_edge_index: int = Field(..., ge=0, description="0-based index of the road-facing edge")
+    frontage_edge_indices: list[int] = Field(
+        ..., min_length=1, description="0-based indices of contiguous road-facing edges"
+    )
     zoning: ZoningRulesRequest
 
     @model_validator(mode="after")

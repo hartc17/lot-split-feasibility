@@ -46,14 +46,14 @@ export async function parseGeojson(geojson) {
   );
 }
 
-export async function runFeasibility(geometry, frontageEdgeIndex, zoning) {
+export async function runFeasibility(geometry, frontageEdgeIndices, zoning) {
   return handleResponse(
     await fetch('/v1/feasibility', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         geometry,
-        frontage_edge_index: frontageEdgeIndex,
+        frontage_edge_indices: frontageEdgeIndices,
         zoning,
       }),
     }),

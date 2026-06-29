@@ -14,19 +14,19 @@ import { useMapLayers } from '../hooks/useMapLayers';
 export default function MapView({
   polygon4326,
   parsedEdges,
-  selectedEdgeIndex,
+  selectedEdgeIndices,
   drawMode,
-  onEdgeSelect,
+  onEdgeToggle,
   onDrawComplete,
 }) {
   const containerRef       = useRef(null);
   const mapRef             = useRef(null);
   const drawInteractionRef = useRef(null);
-  const selectedIdxRef     = useRef(null);
-  const onEdgeSelectRef    = useRef(onEdgeSelect);
+  const selectedIdxRef     = useRef([]);
+  const onEdgeToggleRef    = useRef(onEdgeToggle);
   const onDrawCompleteRef  = useRef(onDrawComplete);
 
-  useEffect(() => { onEdgeSelectRef.current   = onEdgeSelect;   }, [onEdgeSelect]);
+  useEffect(() => { onEdgeToggleRef.current   = onEdgeToggle;   }, [onEdgeToggle]);
   useEffect(() => { onDrawCompleteRef.current = onDrawComplete; }, [onDrawComplete]);
 
   const { parcelSourceRef, edgeSourceRef, parcelLayerRef, edgeLayerRef } =
@@ -61,17 +61,17 @@ export default function MapView({
       const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         layerFilter: (l) => l === edgeLayer,
       });
-      if (feature) onEdgeSelectRef.current(feature.get('edgeIndex'));
+      if (feature) onEdgeToggleRef.current(feature.get('edgeIndex'));
     });
 
     return () => map.setTarget(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Selected edge ───────────────────────────────────────────────────────────
+  // ── Selected edges ──────────────────────────────────────────────────────────
   useEffect(() => {
-    selectedIdxRef.current = selectedEdgeIndex;
+    selectedIdxRef.current = selectedEdgeIndices;
     edgeLayerRef.current?.changed();
-  }, [selectedEdgeIndex]);
+  }, [selectedEdgeIndices]);
 
   // ── Parcel + edge features ──────────────────────────────────────────────────
   useEffect(() => {

@@ -2,26 +2,39 @@ import { Box, Typography, List, ListItemButton, ListItemText } from '@mui/materi
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { SectionLabel, StatusChip, StepBox } from './shared';
 
-export default function EdgePanel({ edges, selectedEdgeIndex, onSelectEdge, disabled }) {
+export default function EdgePanel({ edges, selectedEdgeIndices, onToggleEdge, disabled }) {
+  const totalFt = edges
+    .filter((e) => selectedEdgeIndices.includes(e.index))
+    .reduce((sum, e) => sum + e.length_ft, 0);
+
   return (
     <StepBox disabled={disabled}>
       <SectionLabel>Step 2</SectionLabel>
       <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-        Select Road-Facing Edge
+        Select Road-Facing Edge(s)
       </Typography>
       <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 1 }}>
-        {disabled ? 'Upload or draw a parcel first.' : 'Click an edge below or on the map.'}
+        {disabled
+          ? 'Upload or draw a parcel first.'
+          : 'Click one or more contiguous edges on the map or list below.'}
       </Typography>
+
+      {selectedEdgeIndices.length > 0 && (
+        <Typography variant="caption" sx={{ color: '#15803d', display: 'block', mb: 1, fontWeight: 600 }}>
+          {selectedEdgeIndices.length} edge{selectedEdgeIndices.length > 1 ? 's' : ''} selected
+          &nbsp;·&nbsp;{totalFt.toLocaleString(undefined, { maximumFractionDigits: 0 })} ft total
+        </Typography>
+      )}
 
       {edges.length > 0 && (
         <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
           {edges.map(({ index, length_ft }) => {
-            const selected = index === selectedEdgeIndex;
+            const selected = selectedEdgeIndices.includes(index);
             return (
               <ListItemButton
                 key={index}
                 selected={selected}
-                onClick={() => onSelectEdge(index)}
+                onClick={() => onToggleEdge(index)}
                 sx={{
                   borderRadius: 1,
                   border: '1px solid',
@@ -44,7 +57,7 @@ export default function EdgePanel({ edges, selectedEdgeIndex, onSelectEdge, disa
                   }
                 />
                 <StatusChip
-                  label={`${length_ft.toLocaleString()} ft`}
+                  label={`${length_ft.toLocaleString(undefined, { maximumFractionDigits: 0 })} ft`}
                   color={selected ? 'green' : 'gray'}
                   sx={{ height: 20 }}
                 />

@@ -27,7 +27,7 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
     try:
         parcel_input = build_parcel_geometry_input(
             polygon_4326,
-            body.frontage_edge_index,
+            body.frontage_edge_indices,
             zoning_district_code=body.zoning.district_code or None,
         )
     except ValueError as exc:

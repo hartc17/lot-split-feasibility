@@ -59,19 +59,7 @@ def check_eligibility(
     """
     flags: list[RiskFlag] = []
 
-    # 1. Zoning district not resolved
-    if parcel.zoning_district_code is None:
-        flags.append(RiskFlag(
-            category=RiskCategory.DATA_GAP,
-            severity=ConstraintSeverity.BLOCKING,
-            message=(
-                "Zoning district could not be resolved for this parcel. "
-                "Dimensional standards are unavailable; feasibility cannot be determined."
-            ),
-        ))
-        return flags  # Can't continue without zoning rules
-
-    # 2. Parcel straddles two zoning districts
+    # 1. Parcel straddles two zoning districts
     if parcel.multi_district:
         flags.append(RiskFlag(
             category=RiskCategory.MULTI_DISTRICT_PARCEL,

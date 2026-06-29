@@ -6,6 +6,7 @@ from app.engine.inputs import (
     build_parcel_geometry_input,
     build_zoning_rules_input,
     extract_edge,
+    extract_edges,
 )
 from app.engine.types import ParcelGeometryInput, ZoningRulesInput
 from app.parsers.geojson import parse_geojson
@@ -32,7 +33,7 @@ _ZONING_DICT = {
 }
 
 
-# --- extract_edge ---
+# --- extract_edges / extract_edge ---
 
 def test_extract_edge_returns_linestring():
     poly_4326 = parse_geojson(_POLYGON_4326)
@@ -62,11 +63,34 @@ def test_extract_edge_negative_index_raises():
         extract_edge(poly, -1)
 
 
+def test_extract_edges_merges_contiguous():
+    poly = Polygon([(0, 0), (50, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
+    merged = extract_edges(poly, [0, 1])
+    assert list(merged.coords) == [(0.0, 0.0), (50.0, 0.0), (100.0, 0.0)]
+
+
+def test_extract_edges_single_index_matches_extract_edge():
+    poly = Polygon([(0, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
+    assert list(extract_edges(poly, [0]).coords) == list(extract_edge(poly, 0).coords)
+
+
+def test_extract_edges_non_contiguous_raises():
+    poly = Polygon([(0, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
+    with pytest.raises(ValueError, match="not contiguous"):
+        extract_edges(poly, [0, 2])
+
+
+def test_extract_edges_out_of_range_raises():
+    poly = Polygon([(0, 0), (100, 0), (100, 125), (0, 125), (0, 0)])
+    with pytest.raises(ValueError, match="out of range"):
+        extract_edges(poly, [0, 99])
+
+
 # --- build_parcel_geometry_input ---
 
 def test_build_parcel_geometry_input_returns_correct_type():
     poly_4326 = parse_geojson(_POLYGON_4326)
-    result = build_parcel_geometry_input(poly_4326, frontage_edge_index=0)
+    result = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0])
     assert isinstance(result, ParcelGeometryInput)
     assert isinstance(result.boundary, Polygon)
     assert isinstance(result.frontage_edge, LineString)
@@ -75,7 +99,7 @@ def test_build_parcel_geometry_input_returns_correct_type():
 def test_build_parcel_geometry_input_projected_to_feet():
     """Boundary polygon should be in feet — area roughly 43,560 for a ~1-acre parcel."""
     poly_4326 = parse_geojson(_POLYGON_4326)
-    result = build_parcel_geometry_input(poly_4326, frontage_edge_index=0)
+    result = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0])
     area_sqft = result.boundary.area
     assert 40_000 < area_sqft < 48_000, f"Expected ~43,560 sqft, got {area_sqft:.0f}"
 
@@ -83,12 +107,19 @@ def test_build_parcel_geometry_input_projected_to_feet():
 def test_build_parcel_geometry_input_invalid_edge_raises():
     poly_4326 = parse_geojson(_POLYGON_4326)
     with pytest.raises(ValueError, match="out of range"):
-        build_parcel_geometry_input(poly_4326, frontage_edge_index=99)
+        build_parcel_geometry_input(poly_4326, frontage_edge_indices=[99])
+
+
+def test_build_parcel_geometry_input_multi_edge_merges():
+    poly_4326 = parse_geojson(_POLYGON_4326)
+    single = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0])
+    multi  = build_parcel_geometry_input(poly_4326, frontage_edge_indices=[0, 1])
+    assert multi.frontage_edge.length > single.frontage_edge.length
 
 
 def test_build_parcel_geometry_input_passes_district_code():
     poly_4326 = parse_geojson(_POLYGON_4326)
-    result = build_parcel_geometry_input(poly_4326, 0, zoning_district_code="R-1-2")
+    result = build_parcel_geometry_input(poly_4326, [0], zoning_district_code="R-1-2")
     assert result.zoning_district_code == "R-1-2"
 
 

@@ -12,7 +12,7 @@ import { parseFile, parseGeojson, runFeasibility } from './api';
 export default function App() {
   const [polygon4326, setPolygon4326] = useState(null);
   const [parsedEdges, setParsedEdges] = useState([]);
-  const [selectedEdgeIndex, setSelectedEdgeIndex] = useState(null);
+  const [selectedEdgeIndices, setSelectedEdgeIndices] = useState([]);
   const [drawMode, setDrawMode] = useState(false);
   const [parseStatus, setParseStatus] = useState('');
   const [results, setResults] = useState(null);
@@ -29,7 +29,7 @@ export default function App() {
   const applyParseResult = useCallback((data, sourceName) => {
     setPolygon4326(data.polygon);
     setParsedEdges(data.edges);
-    setSelectedEdgeIndex(null);
+    setSelectedEdgeIndices([]);
     setParseStatus(`${sourceName} — ${data.area_sqft.toLocaleString()} sqft (${data.area_acres} acres)`);
     setResults(null);
     setApiError(null);
@@ -60,25 +60,31 @@ export default function App() {
     }
   }, [applyParseResult]);
 
+  const handleEdgeToggle = useCallback((index) => {
+    setSelectedEdgeIndices((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
+    );
+  }, []);
+
   const handleZoningSubmit = useCallback(async (zoningData) => {
-    if (!polygon4326 || selectedEdgeIndex === null) return;
+    if (!polygon4326 || selectedEdgeIndices.length === 0) return;
     setLoading(true);
     setResults(null);
     setApiError(null);
     try {
-      const data = await runFeasibility(polygon4326, selectedEdgeIndex, zoningData);
+      const data = await runFeasibility(polygon4326, selectedEdgeIndices, zoningData);
       setResults(data);
     } catch (err) {
       setApiError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [polygon4326, selectedEdgeIndex]);
+  }, [polygon4326, selectedEdgeIndices]);
 
   const resetParcel = useCallback(() => {
     setPolygon4326(null);
     setParsedEdges([]);
-    setSelectedEdgeIndex(null);
+    setSelectedEdgeIndices([]);
     setParseStatus('');
     setResults(null);
     setApiError(null);
@@ -86,7 +92,7 @@ export default function App() {
   }, []);
 
   const parcelLoaded = polygon4326 !== null;
-  const edgeSelected = selectedEdgeIndex !== null;
+  const edgeSelected = selectedEdgeIndices.length > 0;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -106,9 +112,9 @@ export default function App() {
           <MapView
             polygon4326={polygon4326}
             parsedEdges={parsedEdges}
-            selectedEdgeIndex={selectedEdgeIndex}
+            selectedEdgeIndices={selectedEdgeIndices}
             drawMode={drawMode}
-            onEdgeSelect={setSelectedEdgeIndex}
+            onEdgeToggle={handleEdgeToggle}
             onDrawComplete={handleDrawComplete}
           />
         </Box>
@@ -138,8 +144,8 @@ export default function App() {
 
           <EdgePanel
             edges={parsedEdges}
-            selectedEdgeIndex={selectedEdgeIndex}
-            onSelectEdge={setSelectedEdgeIndex}
+            selectedEdgeIndices={selectedEdgeIndices}
+            onToggleEdge={handleEdgeToggle}
             disabled={!parcelLoaded}
           />
 

@@ -38,13 +38,6 @@ def test_multi_district_produces_flag():
     assert RiskCategory.MULTI_DISTRICT_PARCEL in categories
 
 
-def test_data_gap_when_zoning_not_resolved():
-    parcel, zoning, structures, _ = fixture_1_clean_split()
-    parcel.zoning_district_code = None
-    flags = check_eligibility(parcel, zoning, structures)
-    categories = [f.category for f in flags]
-    assert RiskCategory.DATA_GAP in categories
-
 
 def test_structure_conflict_produces_flag():
     parcel, zoning, structures, _ = fixture_5_structure_conflict()

@@ -29,7 +29,7 @@ _ZONING = {
 
 _VALID_BODY = {
     "geometry": _POLYGON,
-    "frontage_edge_index": 0,
+    "frontage_edge_indices": [0],
     "zoning": _ZONING,
 }
 
@@ -55,7 +55,7 @@ def test_feasibility_status_is_complete():
 
 
 def test_feasibility_invalid_edge_index_returns_400():
-    body = {**_VALID_BODY, "frontage_edge_index": 999}
+    body = {**_VALID_BODY, "frontage_edge_indices": [999]}
     resp = client.post("/v1/feasibility", json=body)
     assert resp.status_code == 400
 

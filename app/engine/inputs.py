@@ -4,30 +4,43 @@ from app.engine.types import ParcelGeometryInput, ZoningRulesInput
 from app.parsers.projection import get_utm_epsg, project_to_feet
 
 
-def extract_edge(polygon: Polygon, edge_index: int) -> LineString:
-    """Return the nth exterior edge of the polygon as a LineString (0-indexed).
-    Raises ValueError if edge_index is out of range."""
+def extract_edges(polygon: Polygon, edge_indices: list[int]) -> LineString:
+    """Merge one or more contiguous exterior edges into a single LineString (0-indexed).
+
+    Raises ValueError if any index is out of range or the indices are not contiguous.
+    Duplicate indices are ignored. A single index produces a 2-point LineString.
+    """
     coords = list(polygon.exterior.coords)
-    num_edges = len(coords) - 1  # last coord == first coord (closed ring)
-    if not (0 <= edge_index < num_edges):
-        raise ValueError(
-            f"edge_index {edge_index} is out of range for a polygon with {num_edges} edges"
-        )
-    return LineString([coords[edge_index], coords[edge_index + 1]])
+    num_edges = len(coords) - 1  # closed ring: last coord == first coord
+    for idx in edge_indices:
+        if not (0 <= idx < num_edges):
+            raise ValueError(
+                f"edge_index {idx} is out of range for a polygon with {num_edges} edges"
+            )
+    sorted_indices = sorted(set(edge_indices))
+    for i in range(len(sorted_indices) - 1):
+        if sorted_indices[i + 1] != sorted_indices[i] + 1:
+            raise ValueError(
+                f"edges {sorted_indices[i]} and {sorted_indices[i + 1]} are not contiguous"
+            )
+    merged = [coords[sorted_indices[0]]] + [coords[idx + 1] for idx in sorted_indices]
+    return LineString(merged)
+
+
+def extract_edge(polygon: Polygon, edge_index: int) -> LineString:
+    """Single-edge convenience wrapper around extract_edges."""
+    return extract_edges(polygon, [edge_index])
 
 
 def build_parcel_geometry_input(
     polygon_4326: Polygon,
-    frontage_edge_index: int,
+    frontage_edge_indices: list[int],
     zoning_district_code: str | None = None,
 ) -> ParcelGeometryInput:
-    """Project WGS84 polygon to feet, extract the user-selected edge as frontage_edge,
-    and return a ParcelGeometryInput ready for calculate_subdivision_scenarios()."""
-    lon, lat = polygon_4326.centroid.x, polygon_4326.centroid.y
-    utm_epsg = get_utm_epsg(lon, lat)
-
+    """Project WGS84 polygon to feet, merge the user-selected edges into a single
+    frontage LineString, and return a ParcelGeometryInput ready for calculate_subdivision_scenarios()."""
     poly_ft = project_to_feet(polygon_4326)
-    frontage_edge = extract_edge(poly_ft, frontage_edge_index)
+    frontage_edge = extract_edges(poly_ft, frontage_edge_indices)
 
     return ParcelGeometryInput(
         boundary=poly_ft,

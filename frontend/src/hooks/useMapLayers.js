@@ -40,7 +40,7 @@ function buildEdgeLayer(source, selectedIdxRef) {
     source,
     style: (feature) => {
       const idx        = feature.get('edgeIndex');
-      const isSelected = idx === selectedIdxRef.current;
+      const isSelected = selectedIdxRef.current?.includes(idx);
       const isHovered  = feature.get('hovered');
       const stroke     = isSelected ? S.edge.selected : isHovered ? S.edge.hovered : S.edge.default;
       const lbl        = S.edge.label;
