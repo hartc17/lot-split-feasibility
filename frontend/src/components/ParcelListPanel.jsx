@@ -16,7 +16,7 @@ export default function ParcelListPanel({
         {parcels.map((p) => {
           const isActive  = p.id === activeParcelId;
           const isEditing = isActive && editMode;
-          const score     = p.results?.score ?? null;
+          const score     = p.results?.score?.overall ?? null;
           return (
             <ListItemButton
               key={p.id}
