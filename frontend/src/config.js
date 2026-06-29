@@ -59,6 +59,31 @@ export const REVIEW_TIER_CONFIG = {
   PLANNING_COMMISSION_MAJOR: { label: 'Plan. comm.', chipColor: 'yellow' },
 };
 
+// ── Map layer visual config ───────────────────────────────────────────────────
+// Values match OpenLayers constructor argument shapes (Stroke, Fill, TextStyle)
+// so they can be spread directly. Adding a new overlay layer means adding a
+// new key here and a corresponding builder in useMapLayers.js.
+
+export const MAP_LAYER_STYLES = {
+  parcel: {
+    stroke: { color: '#2563eb', width: 2 },
+    fill:   { color: 'rgba(37,99,235,0.08)' },
+  },
+  edge: {
+    default:  { color: '#94a3b8', width: 3 },
+    selected: { color: '#16a34a', width: 4 },
+    hovered:  { color: '#f59e0b', width: 3 },
+    label: {
+      font:          '11px sans-serif',
+      bgFill:        'rgba(255,255,255,0.85)',
+      selectedColor: '#15803d',
+      defaultColor:  '#334155',
+      padding:       [2, 4, 2, 4],
+      offsetY:       -10,
+    },
+  },
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**

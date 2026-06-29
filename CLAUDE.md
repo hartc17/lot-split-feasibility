@@ -99,6 +99,23 @@ Four reusable components that encode the repeated visual patterns across all sid
 
 `StatusChip` color tokens map to `CHIP_COLORS` inside `shared.jsx`. Add new semantic colors there — not inline `sx` hex values.
 
+### Custom hooks (`src/hooks/`)
+
+Extract logic into a hook when a component's `useEffect` block is long enough that its intent is not immediately obvious, or when the same lifecycle pattern would be repeated across two components.
+
+**Naming**: `use<Subject>` — e.g., `useMapLayers`, `useFeasibilityResult`.
+
+**OL / external object initialization**: use lazy ref initialization, not `useMemo`. React may discard memoized values, which would orphan OL objects. The null-check pattern is safe under StrictMode's double-invoke because refs persist across it:
+```js
+if (myRef.current === null) {
+  myRef.current = new SomeExpensiveExternalObject();
+}
+```
+
+**Separate builders from the hook**: write pure builder functions (`buildParcelLayer`, `buildEdgeLayer`) for the OL objects the hook creates. Pure functions are independently readable and testable without React machinery.
+
+**No business logic in hooks**: a hook that manages a map layer belongs here; one that decides whether a parcel is viable does not — that belongs in `app/engine/`.
+
 ### MUI theme (`src/theme.js`)
 
 The theme is the right place for font sizes, spacing, and component defaults that apply globally — not inline `sx` props on individual instances. Current overrides:
