@@ -1,56 +1,73 @@
 import React, { useState } from 'react';
 import {
-  Box, Typography, TextField, Checkbox, FormControlLabel,
+  Typography, TextField, Checkbox, FormControlLabel,
   Button, Grid, CircularProgress,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { SectionLabel, StepBox } from './shared';
 
-const DEFAULTS = {
-  district_code: '',
-  min_lot_area_sqft: '',
-  min_lot_width_ft: '',
-  setback_front_ft: '',
-  setback_side_ft: '',
-  setback_rear_ft: '',
-  minor_subdivision_threshold: '4',
-  flag_lot_min_access_strip_ft: '20',
-  allows_flag_lots: false,
-  requires_public_road_frontage: true,
-};
+// ── Field schema ───────────────────────────────────────────────────────────────
+// Each entry drives rendering, validation, and submission parsing.
+// To add a new zoning field, add one object here — no JSX changes required.
+//
+// key      — form state key; must match the API payload key
+// label    — display label in the TextField or Checkbox
+// type     — 'text' | 'number' | 'checkbox'
+// xs       — MUI Grid xs column span (1–12)
+// required — whether the field blocks submission when empty
+// default  — initial value; used as fallback if the user clears a number field
+// min      — inputProps.min for number inputs
+// integer  — parse with parseInt instead of parseFloat (number fields only)
+// show     — (form) => bool; field is hidden (but still submitted) when false
 
-const REQUIRED_NUMERIC = [
-  'min_lot_area_sqft', 'min_lot_width_ft',
-  'setback_front_ft', 'setback_side_ft', 'setback_rear_ft',
+const FIELDS = [
+  { key: 'district_code',                label: 'District code (optional)',      type: 'text',     xs: 12, default: '' },
+  { key: 'min_lot_area_sqft',            label: 'Min lot area (sqft)',           type: 'number',   xs: 12, required: true, default: '',   min: 0 },
+  { key: 'min_lot_width_ft',             label: 'Min lot width (ft)',            type: 'number',   xs: 6,  required: true, default: '',   min: 0 },
+  { key: 'minor_subdivision_threshold',  label: 'Minor subdiv. threshold',       type: 'number',   xs: 6,  default: '4',  min: 1, integer: true },
+  { key: 'setback_front_ft',             label: 'Front setback (ft)',            type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
+  { key: 'setback_side_ft',              label: 'Side setback (ft)',             type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
+  { key: 'setback_rear_ft',              label: 'Rear setback (ft)',             type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
+  { key: 'allows_flag_lots',             label: 'Allows flag lots',              type: 'checkbox', xs: 12, default: false },
+  { key: 'flag_lot_min_access_strip_ft', label: 'Flag lot access strip (ft)',    type: 'number',   xs: 12, default: '20', min: 0,
+    show: (form) => form.allows_flag_lots },
+  { key: 'requires_public_road_frontage',label: 'Requires public road frontage', type: 'checkbox', xs: 12, default: true },
 ];
+
+// Derived from schema — single source of truth for both
+const DEFAULTS  = Object.fromEntries(FIELDS.map((f) => [f.key, f.default]));
+const REQUIRED  = FIELDS.filter((f) => f.required).map((f) => f.key);
+
+function parseValue(field, raw) {
+  if (field.type !== 'number') return raw; // text → string, checkbox → bool; already correct
+  const n = field.integer ? parseInt(raw, 10) : parseFloat(raw);
+  if (!isNaN(n)) return n;
+  return field.integer ? parseInt(field.default, 10) : parseFloat(field.default);
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ZoningPanel({ disabled, loading, canSubmit, onSubmit }) {
   const [form, setForm] = useState(DEFAULTS);
 
-  const set = (field) => (e) => {
+  const set = (key) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((prev) => ({ ...prev, [field]: val }));
+    setForm((prev) => ({ ...prev, [key]: val }));
   };
 
   const handleSubmit = () => {
-    const missing = REQUIRED_NUMERIC.filter((f) => !form[f] || isNaN(parseFloat(form[f])));
+    const missing = REQUIRED.filter((k) => {
+      const v = form[k];
+      return v === '' || v === null || v === undefined || isNaN(parseFloat(v));
+    });
     if (missing.length) {
-      alert(`Please fill in: ${missing.map((f) => f.replace(/_/g, ' ')).join(', ')}`);
+      alert(`Please fill in: ${missing.map((k) => k.replace(/_/g, ' ')).join(', ')}`);
       return;
     }
-    onSubmit({
-      district_code:                 form.district_code,
-      min_lot_area_sqft:             parseFloat(form.min_lot_area_sqft),
-      min_lot_width_ft:              parseFloat(form.min_lot_width_ft),
-      setback_front_ft:              parseFloat(form.setback_front_ft),
-      setback_side_ft:               parseFloat(form.setback_side_ft),
-      setback_rear_ft:               parseFloat(form.setback_rear_ft),
-      minor_subdivision_threshold:   parseInt(form.minor_subdivision_threshold, 10) || 4,
-      flag_lot_min_access_strip_ft:  parseFloat(form.flag_lot_min_access_strip_ft) || 20,
-      allows_flag_lots:              form.allows_flag_lots,
-      requires_public_road_frontage: form.requires_public_road_frontage,
-    });
+    onSubmit(Object.fromEntries(FIELDS.map((f) => [f.key, parseValue(f, form[f.key])])));
   };
+
+  const visibleFields = FIELDS.filter((f) => !f.show || f.show(form));
 
   return (
     <StepBox disabled={disabled}>
@@ -60,53 +77,28 @@ export default function ZoningPanel({ disabled, loading, canSubmit, onSubmit }) 
       </Typography>
 
       <Grid container spacing={1}>
-        <Grid item xs={12}>
-          <TextField label="District code (optional)" value={form.district_code} onChange={set('district_code')} fullWidth />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField label="Min lot area (sqft)" type="number" value={form.min_lot_area_sqft} onChange={set('min_lot_area_sqft')} fullWidth required inputProps={{ min: 0 }} />
-        </Grid>
-
-        <Grid item xs={6}>
-          <TextField label="Min lot width (ft)" type="number" value={form.min_lot_width_ft} onChange={set('min_lot_width_ft')} fullWidth required inputProps={{ min: 0 }} />
-        </Grid>
-
-        <Grid item xs={6}>
-          <TextField label="Minor subdiv. threshold" type="number" value={form.minor_subdivision_threshold} onChange={set('minor_subdivision_threshold')} fullWidth inputProps={{ min: 1 }} />
-        </Grid>
-
-        <Grid item xs={4}>
-          <TextField label="Front setback (ft)" type="number" value={form.setback_front_ft} onChange={set('setback_front_ft')} fullWidth required inputProps={{ min: 0 }} />
-        </Grid>
-
-        <Grid item xs={4}>
-          <TextField label="Side setback (ft)" type="number" value={form.setback_side_ft} onChange={set('setback_side_ft')} fullWidth required inputProps={{ min: 0 }} />
-        </Grid>
-
-        <Grid item xs={4}>
-          <TextField label="Rear setback (ft)" type="number" value={form.setback_rear_ft} onChange={set('setback_rear_ft')} fullWidth required inputProps={{ min: 0 }} />
-        </Grid>
-
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={<Checkbox checked={form.allows_flag_lots} onChange={set('allows_flag_lots')} size="small" />}
-            label={<Typography variant="caption">Allows flag lots</Typography>}
-          />
-        </Grid>
-
-        {form.allows_flag_lots && (
-          <Grid item xs={12}>
-            <TextField label="Flag lot access strip (ft)" type="number" value={form.flag_lot_min_access_strip_ft} onChange={set('flag_lot_min_access_strip_ft')} fullWidth inputProps={{ min: 0 }} />
+        {visibleFields.map((field) => (
+          <Grid item xs={field.xs} key={field.key}>
+            {field.type === 'checkbox' ? (
+              <FormControlLabel
+                control={
+                  <Checkbox checked={form[field.key]} onChange={set(field.key)} size="small" />
+                }
+                label={<Typography variant="caption">{field.label}</Typography>}
+              />
+            ) : (
+              <TextField
+                label={field.label}
+                type={field.type}
+                value={form[field.key]}
+                onChange={set(field.key)}
+                fullWidth
+                required={!!field.required}
+                inputProps={field.min !== undefined ? { min: field.min } : undefined}
+              />
+            )}
           </Grid>
-        )}
-
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={<Checkbox checked={form.requires_public_road_frontage} onChange={set('requires_public_road_frontage')} size="small" />}
-            label={<Typography variant="caption">Requires public road frontage</Typography>}
-          />
-        </Grid>
+        ))}
       </Grid>
 
       <Button

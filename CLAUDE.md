@@ -99,6 +99,21 @@ Four reusable components that encode the repeated visual patterns across all sid
 
 `StatusChip` color tokens map to `CHIP_COLORS` inside `shared.jsx`. Add new semantic colors there — not inline `sx` hex values.
 
+### Form field schemas (e.g., `FIELDS` in ZoningPanel)
+
+When a form has more than ~3 fields, define them as a schema array rather than inline JSX. Each entry is a plain object that drives rendering, validation, and submission parsing from a single source of truth:
+
+```js
+{ key, label, type, xs, required, default, min, integer, show }
+```
+
+- `DEFAULTS` and `REQUIRED` are derived from the schema — never maintained separately.
+- `show: (form) => bool` handles conditional visibility without inline `&&` expressions in JSX.
+- `parseValue(field, raw)` converts form strings to typed API values based on `type`/`integer`; field components never contain parsing logic.
+- Hidden fields (`show` returns false) are still submitted at their current value — the predicate controls UI only.
+
+Adding a new field is one object in the array. No JSX changes required.
+
 ### Custom hooks (`src/hooks/`)
 
 Extract logic into a hook when a component's `useEffect` block is long enough that its intent is not immediately obvious, or when the same lifecycle pattern would be repeated across two components.
