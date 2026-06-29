@@ -66,8 +66,8 @@ export const REVIEW_TIER_CONFIG = {
 
 export const MAP_LAYER_STYLES = {
   parcel: {
-    stroke: { color: '#2563eb', width: 2 },
-    fill:   { color: 'rgba(37,99,235,0.08)' },
+    active:   { stroke: { color: '#2563eb', width: 2.5 }, fill: { color: 'rgba(37,99,235,0.10)' } },
+    inactive: { stroke: { color: '#94a3b8', width: 1.5 }, fill: { color: 'rgba(148,163,184,0.06)' } },
   },
   edge: {
     default:  { color: '#94a3b8', width: 3 },

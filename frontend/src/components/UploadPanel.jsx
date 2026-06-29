@@ -6,20 +6,18 @@ import CloseIcon from '@mui/icons-material/Close';
 import { SectionLabel } from './shared';
 
 export default function UploadPanel({
-  parseStatus,
   drawMode,
-  parcelLoaded,
-  onFileUpload,
+  parcelCount,
+  onUploadFiles,
   onStartDraw,
-  onCancelDraw,
-  onReset,
+  onStopDraw,
+  onClearAll,
 }) {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      onFileUpload(file);
+    if (e.target.files.length) {
+      onUploadFiles(e.target.files);
       e.target.value = '';
     }
   };
@@ -35,14 +33,15 @@ export default function UploadPanel({
         ref={fileInputRef}
         type="file"
         accept=".geojson,.json,.kml,.zip"
+        multiple
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
 
       {drawMode ? (
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" color="error" startIcon={<CloseIcon />} onClick={onCancelDraw}>
-            Cancel Draw
+          <Button variant="outlined" color="error" startIcon={<CloseIcon />} onClick={onStopDraw}>
+            Stop Drawing
           </Button>
         </Stack>
       ) : (
@@ -52,14 +51,14 @@ export default function UploadPanel({
             startIcon={<UploadFileIcon />}
             onClick={() => fileInputRef.current.click()}
           >
-            Upload File
+            Upload
           </Button>
           <Button variant="outlined" startIcon={<EditIcon />} onClick={onStartDraw}>
             Draw
           </Button>
-          {parcelLoaded && (
-            <Button variant="text" color="inherit" onClick={onReset} sx={{ color: '#94a3b8' }}>
-              Clear
+          {parcelCount > 0 && (
+            <Button variant="text" color="inherit" onClick={onClearAll} sx={{ color: '#94a3b8' }}>
+              Clear All
             </Button>
           )}
         </Stack>
@@ -67,8 +66,8 @@ export default function UploadPanel({
 
       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 1 }}>
         {drawMode
-          ? 'Click to place vertices. Double-click to finish.'
-          : parseStatus || 'Accepts .geojson, .kml, or .zip (shapefile)'}
+          ? 'Click to place vertices. Double-click to finish. Draw more or click Stop Drawing.'
+          : 'Accepts .geojson, .kml, .zip (shapefile). Multiple files supported.'}
       </Typography>
     </Box>
   );

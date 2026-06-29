@@ -1,18 +1,4 @@
-/**
- * useMapLayers — creates and manages the OL vector layers for the map.
- *
- * Layer objects are built once via lazy ref initialization and returned as
- * stable refs, safe to pass directly into an OL Map's layers array. The
- * calling component is responsible for adding them to the map and for
- * updating sources when data changes.
- *
- * To add a new overlay layer (flood zones, utilities, etc.):
- *   1. Add its style config to MAP_LAYER_STYLES in config.js.
- *   2. Write a buildXLayer(source) function below following the same pattern.
- *   3. Initialize source + layer inside the lazy-init block and return them.
- */
-
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import Style from 'ol/style/Style';
@@ -20,18 +6,25 @@ import Stroke from 'ol/style/Stroke';
 import Fill from 'ol/style/Fill';
 import TextStyle from 'ol/style/Text';
 import Point from 'ol/geom/Point';
+import Feature from 'ol/Feature';
+import LineString from 'ol/geom/LineString';
+import GeoJSONFormat from 'ol/format/GeoJSON';
 import { MAP_LAYER_STYLES as S } from '../config';
 
 // ── Layer builders ────────────────────────────────────────────────────────────
-// Plain functions, not hooks — buildable and testable independently of React.
 
-function buildParcelLayer(source) {
+function buildParcelLayer(source, activeIdRef) {
   return new VectorLayer({
     source,
-    style: new Style({
-      stroke: new Stroke(S.parcel.stroke),
-      fill:   new Fill(S.parcel.fill),
-    }),
+    style: (feature) => {
+      const cfg = feature.get('parcelId') === activeIdRef.current
+        ? S.parcel.active
+        : S.parcel.inactive;
+      return new Style({
+        stroke: new Stroke(cfg.stroke),
+        fill:   new Fill(cfg.fill),
+      });
+    },
   });
 }
 
@@ -66,34 +59,58 @@ function buildEdgeLayer(source, selectedIdxRef) {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-/**
- * @param {React.MutableRefObject<number|null>} selectedIdxRef
- *   Ref that the edge layer's style function reads at render time.
- *   Must be the same ref object for the lifetime of the component.
- *
- * @returns {{
- *   parcelSourceRef: React.MutableRefObject<VectorSource>,
- *   edgeSourceRef:   React.MutableRefObject<VectorSource>,
- *   parcelLayerRef:  React.MutableRefObject<VectorLayer>,
- *   edgeLayerRef:    React.MutableRefObject<VectorLayer>,
- * }}
- */
-export function useMapLayers(selectedIdxRef) {
+export function useMapLayers(activeIdRef, selectedIdxRef) {
   const parcelSourceRef = useRef(null);
   const edgeSourceRef   = useRef(null);
   const parcelLayerRef  = useRef(null);
   const edgeLayerRef    = useRef(null);
 
-  // Lazy ref initialization: runs once even under React StrictMode's
-  // double-invoke because the null check short-circuits on the second pass.
   if (parcelSourceRef.current === null) {
     const parcelSource = new VectorSource();
     const edgeSource   = new VectorSource();
     parcelSourceRef.current = parcelSource;
     edgeSourceRef.current   = edgeSource;
-    parcelLayerRef.current  = buildParcelLayer(parcelSource);
+    parcelLayerRef.current  = buildParcelLayer(parcelSource, activeIdRef);
     edgeLayerRef.current    = buildEdgeLayer(edgeSource, selectedIdxRef);
   }
 
-  return { parcelSourceRef, edgeSourceRef, parcelLayerRef, edgeLayerRef };
+  const addParcelToMap = useCallback((id, polygon4326) => {
+    const format  = new GeoJSONFormat();
+    const feature = format.readFeature(polygon4326, {
+      dataProjection:    'EPSG:4326',
+      featureProjection: 'EPSG:3857',
+    });
+    feature.set('parcelId', id);
+    parcelSourceRef.current.addFeature(feature);
+    parcelLayerRef.current.changed();
+    return feature;
+  }, []);
+
+  const removeParcelFromMap = useCallback((id) => {
+    const feature = parcelSourceRef.current
+      .getFeatures()
+      .find((f) => f.get('parcelId') === id);
+    if (feature) parcelSourceRef.current.removeFeature(feature);
+  }, []);
+
+  const updateEdges = useCallback((edges, activeParcelFeature) => {
+    const edgeSource = edgeSourceRef.current;
+    edgeSource.clear();
+    if (!activeParcelFeature || !edges.length) return;
+    const ring = activeParcelFeature.getGeometry().getLinearRing(0).getCoordinates();
+    edges.forEach(({ index, length_ft }) => {
+      const start = ring[index];
+      const end   = ring[index + 1];
+      if (!start || !end) return;
+      const f = new Feature(new LineString([start, end]));
+      f.set('edgeIndex', index);
+      f.set('lengthFt', length_ft.toLocaleString());
+      edgeSource.addFeature(f);
+    });
+  }, []);
+
+  return {
+    parcelSourceRef, edgeSourceRef, parcelLayerRef, edgeLayerRef,
+    addParcelToMap, removeParcelFromMap, updateEdges,
+  };
 }

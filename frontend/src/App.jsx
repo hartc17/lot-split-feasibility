@@ -1,98 +1,109 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  AppBar, Toolbar, Typography, Box, Divider, Alert,
-} from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Divider, Alert } from '@mui/material';
 import MapView from './components/MapView';
 import UploadPanel from './components/UploadPanel';
+import ParcelListPanel from './components/ParcelListPanel';
 import EdgePanel from './components/EdgePanel';
-import ZoningPanel from './components/ZoningPanel';
+import ZoningPanel, { ZONING_DEFAULTS } from './components/ZoningPanel';
 import ResultsPanel from './components/ResultsPanel';
+import { useParcels } from './hooks/useParcels';
 import { parseFile, parseGeojson, runFeasibility } from './api';
 
 export default function App() {
-  const [polygon4326, setPolygon4326] = useState(null);
-  const [parsedEdges, setParsedEdges] = useState([]);
-  const [selectedEdgeIndices, setSelectedEdgeIndices] = useState([]);
+  const { parcels, activeParcelId, activeParcel, add, update, remove, clearAll, setActiveParcelId } =
+    useParcels(ZONING_DEFAULTS);
+
   const [drawMode, setDrawMode] = useState(false);
-  const [parseStatus, setParseStatus] = useState('');
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
-  const resultsRef = useRef(null);
+  const drawCountRef            = useRef(0);
+  const resultsRef              = useRef(null);
 
   useEffect(() => {
-    if (results && resultsRef.current) {
+    if (activeParcel?.results && resultsRef.current) {
       resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-  }, [results]);
+  }, [activeParcel?.results]);
 
-  const applyParseResult = useCallback((data, sourceName) => {
-    setPolygon4326(data.polygon);
-    setParsedEdges(data.edges);
-    setSelectedEdgeIndices([]);
-    setParseStatus(`${sourceName} — ${data.area_sqft.toLocaleString()} sqft (${data.area_acres} acres)`);
-    setResults(null);
+  const handleUploadFiles = useCallback(async (files) => {
     setApiError(null);
-  }, []);
-
-  const handleFileUpload = useCallback(async (file) => {
-    setParseStatus(`Parsing ${file.name}…`);
-    setApiError(null);
-    try {
-      const data = await parseFile(file);
-      applyParseResult(data, file.name);
-    } catch (err) {
-      setParseStatus('');
-      setApiError(err.message);
-    }
-  }, [applyParseResult]);
+    await Promise.all(Array.from(files).map(async (file) => {
+      try {
+        const data = await parseFile(file);
+        add('upload', file.name, data.polygon, data.edges);
+      } catch (err) {
+        setApiError(`${file.name}: ${err.message}`);
+      }
+    }));
+  }, [add]);
 
   const handleDrawComplete = useCallback(async (geojson) => {
-    setDrawMode(false);
-    setParseStatus('Analysing drawn parcel…');
     setApiError(null);
     try {
       const data = await parseGeojson(geojson);
-      applyParseResult(data, 'drawn parcel');
+      drawCountRef.current += 1;
+      add('draw', `Drawn parcel ${drawCountRef.current}`, data.polygon, data.edges);
     } catch (err) {
-      setParseStatus('');
       setApiError(err.message);
     }
-  }, [applyParseResult]);
+  }, [add]);
 
   const handleEdgeToggle = useCallback((index) => {
-    setSelectedEdgeIndices((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
-    );
-  }, []);
+    if (!activeParcelId) return;
+    const current = activeParcel?.selectedEdgeIndices ?? [];
+    update(activeParcelId, {
+      selectedEdgeIndices: current.includes(index)
+        ? current.filter((i) => i !== index)
+        : [...current, index],
+    });
+  }, [activeParcelId, activeParcel?.selectedEdgeIndices, update]);
+
+  const handleZoningChange = useCallback((values) => {
+    if (!activeParcelId) return;
+    update(activeParcelId, { zoningForm: values });
+  }, [activeParcelId, update]);
 
   const handleZoningSubmit = useCallback(async (zoningData) => {
-    if (!polygon4326 || selectedEdgeIndices.length === 0) return;
-    setLoading(true);
-    setResults(null);
+    if (!activeParcel || activeParcel.selectedEdgeIndices.length === 0) return;
+    update(activeParcelId, { loading: true, results: null });
     setApiError(null);
     try {
-      const data = await runFeasibility(polygon4326, selectedEdgeIndices, zoningData);
-      setResults(data);
+      const data = await runFeasibility(
+        activeParcel.polygon4326,
+        activeParcel.selectedEdgeIndices,
+        zoningData,
+      );
+      update(activeParcelId, { results: data, loading: false });
+    } catch (err) {
+      update(activeParcelId, { loading: false });
+      setApiError(err.message);
+    }
+  }, [activeParcel, activeParcelId, update]);
+
+  const handleParcelModified = useCallback(async (geojson) => {
+    if (!activeParcelId) return;
+    setApiError(null);
+    try {
+      const data = await parseGeojson(geojson);
+      update(activeParcelId, {
+        polygon4326:          data.polygon,
+        edges:                data.edges,
+        selectedEdgeIndices:  [],
+        results:              null,
+      });
     } catch (err) {
       setApiError(err.message);
-    } finally {
-      setLoading(false);
     }
-  }, [polygon4326, selectedEdgeIndices]);
+  }, [activeParcelId, update]);
 
-  const resetParcel = useCallback(() => {
-    setPolygon4326(null);
-    setParsedEdges([]);
-    setSelectedEdgeIndices([]);
-    setParseStatus('');
-    setResults(null);
-    setApiError(null);
+  const handleClearAll = useCallback(() => {
+    clearAll();
     setDrawMode(false);
-  }, []);
+    setApiError(null);
+    drawCountRef.current = 0;
+  }, [clearAll]);
 
-  const parcelLoaded = polygon4326 !== null;
-  const edgeSelected = selectedEdgeIndices.length > 0;
+  const parcelLoaded = !!activeParcel;
+  const edgeSelected = (activeParcel?.selectedEdgeIndices.length ?? 0) > 0;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -110,12 +121,15 @@ export default function App() {
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Box sx={{ flex: 1, position: 'relative' }}>
           <MapView
-            polygon4326={polygon4326}
-            parsedEdges={parsedEdges}
-            selectedEdgeIndices={selectedEdgeIndices}
+            parcels={parcels}
+            activeParcelId={activeParcelId}
+            activeParcel={activeParcel}
+            selectedEdgeIndices={activeParcel?.selectedEdgeIndices ?? []}
             drawMode={drawMode}
             onEdgeToggle={handleEdgeToggle}
             onDrawComplete={handleDrawComplete}
+            onActivateParcel={setActiveParcelId}
+            onParcelModified={handleParcelModified}
           />
         </Box>
 
@@ -131,20 +145,31 @@ export default function App() {
           }}
         >
           <UploadPanel
-            parseStatus={parseStatus}
             drawMode={drawMode}
-            parcelLoaded={parcelLoaded}
-            onFileUpload={handleFileUpload}
+            parcelCount={parcels.length}
+            onUploadFiles={handleUploadFiles}
             onStartDraw={() => setDrawMode(true)}
-            onCancelDraw={() => setDrawMode(false)}
-            onReset={resetParcel}
+            onStopDraw={() => setDrawMode(false)}
+            onClearAll={handleClearAll}
           />
+
+          {parcels.length > 0 && (
+            <>
+              <Divider />
+              <ParcelListPanel
+                parcels={parcels}
+                activeParcelId={activeParcelId}
+                onActivate={setActiveParcelId}
+                onRemove={remove}
+              />
+            </>
+          )}
 
           <Divider />
 
           <EdgePanel
-            edges={parsedEdges}
-            selectedEdgeIndices={selectedEdgeIndices}
+            edges={activeParcel?.edges ?? []}
+            selectedEdgeIndices={activeParcel?.selectedEdgeIndices ?? []}
             onToggleEdge={handleEdgeToggle}
             disabled={!parcelLoaded}
           />
@@ -152,10 +177,13 @@ export default function App() {
           <Divider />
 
           <ZoningPanel
+            key={activeParcelId}
             disabled={!parcelLoaded}
-            loading={loading}
+            loading={activeParcel?.loading ?? false}
             canSubmit={parcelLoaded && edgeSelected}
             onSubmit={handleZoningSubmit}
+            initialValues={activeParcel?.zoningForm}
+            onFormChange={handleZoningChange}
           />
 
           {apiError && (
@@ -164,10 +192,10 @@ export default function App() {
             </Box>
           )}
 
-          {results && !loading && (
+          {activeParcel?.results && !activeParcel.loading && (
             <Box ref={resultsRef}>
               <Divider />
-              <ResultsPanel results={results} />
+              <ResultsPanel results={activeParcel.results} />
             </Box>
           )}
         </Box>

@@ -7,18 +7,6 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { SectionLabel, StepBox } from './shared';
 
 // ── Field schema ───────────────────────────────────────────────────────────────
-// Each entry drives rendering, validation, and submission parsing.
-// To add a new zoning field, add one object here — no JSX changes required.
-//
-// key      — form state key; must match the API payload key
-// label    — display label in the TextField or Checkbox
-// type     — 'text' | 'number' | 'checkbox'
-// xs       — MUI Grid xs column span (1–12)
-// required — whether the field blocks submission when empty
-// default  — initial value; used as fallback if the user clears a number field
-// min      — inputProps.min for number inputs
-// integer  — parse with parseInt instead of parseFloat (number fields only)
-// show     — (form) => bool; field is hidden (but still submitted) when false
 
 const FIELDS = [
   { key: 'district_code',                label: 'District code (optional)',      type: 'text',     xs: 12, default: '' },
@@ -27,19 +15,18 @@ const FIELDS = [
   { key: 'minor_subdivision_threshold',  label: 'Minor subdiv. threshold',       type: 'number',   xs: 6,  default: '4',  min: 1, integer: true },
   { key: 'setback_front_ft',             label: 'Front setback (ft)',            type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
   { key: 'setback_side_ft',              label: 'Side setback (ft)',             type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
-  { key: 'setback_rear_ft',              label: 'Rear setback (ft)',             type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
+  { key: 'setback_rear_ft',             label: 'Rear setback (ft)',             type: 'number',   xs: 4,  required: true, default: '',   min: 0 },
   { key: 'allows_flag_lots',             label: 'Allows flag lots',              type: 'checkbox', xs: 12, default: false },
   { key: 'flag_lot_min_access_strip_ft', label: 'Flag lot access strip (ft)',    type: 'number',   xs: 12, default: '20', min: 0,
     show: (form) => form.allows_flag_lots },
   { key: 'requires_public_road_frontage',label: 'Requires public road frontage', type: 'checkbox', xs: 12, default: true },
 ];
 
-// Derived from schema — single source of truth for both
-const DEFAULTS  = Object.fromEntries(FIELDS.map((f) => [f.key, f.default]));
-const REQUIRED  = FIELDS.filter((f) => f.required).map((f) => f.key);
+export const ZONING_DEFAULTS = Object.fromEntries(FIELDS.map((f) => [f.key, f.default]));
+const REQUIRED = FIELDS.filter((f) => f.required).map((f) => f.key);
 
 function parseValue(field, raw) {
-  if (field.type !== 'number') return raw; // text → string, checkbox → bool; already correct
+  if (field.type !== 'number') return raw;
   const n = field.integer ? parseInt(raw, 10) : parseFloat(raw);
   if (!isNaN(n)) return n;
   return field.integer ? parseInt(field.default, 10) : parseFloat(field.default);
@@ -47,12 +34,16 @@ function parseValue(field, raw) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function ZoningPanel({ disabled, loading, canSubmit, onSubmit }) {
-  const [form, setForm] = useState(DEFAULTS);
+export default function ZoningPanel({
+  disabled, loading, canSubmit, onSubmit, initialValues, onFormChange,
+}) {
+  const [form, setForm] = useState(initialValues ?? ZONING_DEFAULTS);
 
   const set = (key) => (e) => {
-    const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((prev) => ({ ...prev, [key]: val }));
+    const val  = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    const next = { ...form, [key]: val };
+    setForm(next);
+    onFormChange?.(next);
   };
 
   const handleSubmit = () => {
