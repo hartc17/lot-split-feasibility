@@ -644,8 +644,8 @@ HTML template (Jinja2) + SVG lot diagram from engine geometry output. PDF export
 **Phase 6 — Web UI (✅ complete).**
 OpenLayers 9.x map served from `app/static/` at `GET /`. File upload (GeoJSON/KML/SHP zip), freehand polygon draw, per-edge click selection with live length labels, zoning rules form, results table with scenario and flag display. Assets served via FastAPI `StaticFiles` mount at `/static/`.
 
-**Phase 7 — Scoring & risk model.**
-Section 7 scoring implementation against the complete engine output.
+**Phase 7 — Scoring & risk model (✅ complete).**
+`app/scoring/scoring.py` — deterministic 0–100 score across five weighted sub-scores (zoning compliance 35%, physical buildability 25%, access/utility 15%, process complexity 10%, financial upside 15% placeholder). `score_result()` returns a `FeasibilityScore` with sub-score breakdowns and a `Recommendation` enum (PURSUE / PURSUE_WITH_CAUTION / UNLIKELY / NOT_FEASIBLE). Score and verdict card rendered in the UI. 35 scoring tests, 167 total.
 
 **Phase 8 — Comps/valuation layer.**
 Section 5.6/7.3 — financial quick-screen. Intentionally last; the rest of the product is complete without it.

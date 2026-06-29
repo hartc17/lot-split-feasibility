@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas import FeasibilityRequest, FeasibilityResponse, ScenarioSummary
+from app.api.schemas import (
+    FeasibilityRequest,
+    FeasibilityResponse,
+    FeasibilityScore,
+    ScenarioSummary,
+    SubScoreDetail,
+)
 from app.engine.calculator import calculate_subdivision_scenarios
 from app.engine.inputs import build_parcel_geometry_input, build_zoning_rules_input
 from app.parsers.geojson import parse_geojson
+from app.scoring.scoring import score_result
 
 router = APIRouter(tags=["feasibility"])
 
@@ -41,6 +46,8 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
         existing_structures=[],
     )
 
+    fscore = score_result(result)
+
     scenarios = [
         ScenarioSummary(
             num_resulting_lots=s.num_resulting_lots,
@@ -54,13 +61,23 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
         for s in result.scenarios
     ]
 
-    disqualifying = [f.category.value for f in result.disqualifying_flags]
-
     return FeasibilityResponse(
-        report_id=None,  # storage added once Postgres is running
+        report_id=None,
         status="complete",
         max_theoretical_lots=result.max_theoretical_lots,
         scenarios=scenarios,
-        disqualifying_flags=disqualifying,
+        disqualifying_flags=[f.category.value for f in result.disqualifying_flags],
         data_gap=result.data_gap,
+        score=FeasibilityScore(
+            overall=fscore.overall,
+            recommendation=fscore.recommendation.value,
+            sub_scores={
+                k: SubScoreDetail(
+                    score=v.score,
+                    weight=v.weight,
+                    explanation=v.explanation,
+                )
+                for k, v in fscore.sub_scores.items()
+            },
+        ),
     )

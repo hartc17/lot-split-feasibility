@@ -51,6 +51,18 @@ class ScenarioSummary(BaseModel):
     risk_flag_count: int
 
 
+class SubScoreDetail(BaseModel):
+    score: int
+    weight: float
+    explanation: str
+
+
+class FeasibilityScore(BaseModel):
+    overall: int
+    recommendation: str
+    sub_scores: dict[str, SubScoreDetail]
+
+
 class FeasibilityResponse(BaseModel):
     report_id: str | None = None
     status: str
@@ -58,3 +70,4 @@ class FeasibilityResponse(BaseModel):
     scenarios: list[ScenarioSummary]
     disqualifying_flags: list[str]
     data_gap: bool
+    score: FeasibilityScore

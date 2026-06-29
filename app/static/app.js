@@ -371,6 +371,70 @@ function readZoningForm() {
 /* ─────────────────────────────────────────────────────
    Results rendering
 ───────────────────────────────────────────────────── */
+const _SUBSCORE_LABELS = {
+  zoning_compliance:    'Zoning Compliance',
+  physical_buildability:'Physical Buildability',
+  access_utility:       'Access & Utility',
+  process_complexity:   'Process Complexity',
+  financial_upside:     'Financial Upside',
+};
+
+function _verdictClass(rec) {
+  if (rec === 'PURSUE')               return 'pursue';
+  if (rec === 'PURSUE_WITH_CAUTION')  return 'caution';
+  if (rec === 'UNLIKELY')             return 'unlikely';
+  return 'not-feasible';
+}
+
+function _verdictLabel(rec) {
+  if (rec === 'PURSUE')               return 'Pursue';
+  if (rec === 'PURSUE_WITH_CAUTION')  return 'Pursue with Caution';
+  if (rec === 'UNLIKELY')             return 'Unlikely';
+  return 'Not Feasible';
+}
+
+function _barColor(score) {
+  if (score >= 70) return '#4ade80';
+  if (score >= 50) return '#facc15';
+  return '#f87171';
+}
+
+function _verdictCardHTML(score) {
+  const cls   = _verdictClass(score.recommendation);
+  const label = _verdictLabel(score.recommendation);
+  const rec   = score.recommendation.replace(/_/g, ' ');
+
+  const subRows = Object.entries(score.sub_scores).map(([key, sub]) => {
+    const name  = _SUBSCORE_LABELS[key] || key;
+    const pct   = sub.score + '%';
+    const color = _barColor(sub.score);
+    const wt    = Math.round(sub.weight * 100);
+    return `
+      <div class="subscore-row">
+        <div class="subscore-header">
+          <span class="subscore-name">${name} <span style="color:#cbd5e1;font-weight:400">(${wt}%)</span></span>
+          <span class="subscore-value">${sub.score}</span>
+        </div>
+        <div class="subscore-bar-bg">
+          <div class="subscore-bar-fill" style="width:${pct};background:${color}"></div>
+        </div>
+        <div class="subscore-exp">${sub.explanation}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="verdict-card ${cls}">
+      <div class="verdict-score">${score.overall}</div>
+      <div>
+        <div class="verdict-label">${label}</div>
+        <div class="verdict-sub">Overall score: ${score.overall}/100</div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;">SCORE BREAKDOWN</div>
+    <div class="subscore-list">${subRows}</div>
+    <hr style="border:none;border-top:1px solid #f1f5f9;margin:12px 0">`;
+}
+
 function showResults(data) {
   const resultsDiv = document.getElementById('results');
   const body       = document.getElementById('results-body');
@@ -386,9 +450,9 @@ function showResults(data) {
   let scenariosHTML = '';
   if (data.scenarios.length > 0) {
     const rows = data.scenarios.map(s => {
-      const varBadge  = s.requires_variance    ? '<span class="badge badge-yellow">Variance</span>' : '';
-      const rezoneBadge = s.requires_rezone    ? '<span class="badge badge-red">Rezone</span>'    : '';
-      const tierBadge = s.subdivision_review_tier === 'ADMINISTRATIVE_MINOR'
+      const varBadge    = s.requires_variance ? '<span class="badge badge-yellow">Variance</span>' : '';
+      const rezoneBadge = s.requires_rezone   ? '<span class="badge badge-red">Rezone</span>'    : '';
+      const tierBadge   = s.subdivision_review_tier === 'ADMINISTRATIVE_MINOR'
         ? '<span class="badge badge-green">Admin minor</span>'
         : '<span class="badge badge-yellow">Plan. comm.</span>';
       const layout = s.lot_layout_type.replace(/_/g, ' ').toLowerCase()
@@ -422,6 +486,7 @@ function showResults(data) {
   }
 
   body.innerHTML = `
+    ${data.score ? _verdictCardHTML(data.score) : ''}
     <div class="result-stat">
       <span class="result-stat-label">Max theoretical lots</span>
       <span class="result-stat-value">${maxLots} ${dataGap}</span>
@@ -434,7 +499,6 @@ function showResults(data) {
     ${flagsHTML}
   `;
 
-  // scroll results into view
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
