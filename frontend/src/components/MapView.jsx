@@ -27,7 +27,7 @@ export default function MapView({
   const modifyInteractionRef = useRef(null);
   const selectedIdxRef       = useRef([]);
   const activeIdRef          = useRef(null);
-  const parcelFeaturesRef    = useRef(new Map()); // parcelId → OL Feature
+  const parcelFeaturesRef    = useRef({}); // parcelId → OL Feature
 
   const onEdgeToggleRef     = useRef(onEdgeToggle);
   const onDrawCompleteRef   = useRef(onDrawComplete);
@@ -91,20 +91,19 @@ export default function MapView({
 
   // Sync parcel list to map (add/remove features); runs before active-parcel effect
   useEffect(() => {
-    const currentIds = new Set(parcelFeaturesRef.current.keys());
-    const nextIds    = new Set(parcels.map((p) => p.id));
+    const registry = parcelFeaturesRef.current;
+    const nextIds  = new Set(parcels.map((p) => p.id));
 
     parcels.forEach((p) => {
-      if (!currentIds.has(p.id)) {
-        const feature = addParcelToMap(p.id, p.polygon4326);
-        parcelFeaturesRef.current.set(p.id, feature);
+      if (!(p.id in registry)) {
+        registry[p.id] = addParcelToMap(p.id, p.polygon4326);
       }
     });
 
-    currentIds.forEach((id) => {
+    Object.keys(registry).forEach((id) => {
       if (!nextIds.has(id)) {
         removeParcelFromMap(id);
-        parcelFeaturesRef.current.delete(id);
+        delete registry[id];
       }
     });
   }, [parcels]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,7 +115,7 @@ export default function MapView({
 
     const map           = mapRef.current;
     const activeFeature = activeParcelId
-      ? parcelFeaturesRef.current.get(activeParcelId)
+      ? parcelFeaturesRef.current[activeParcelId]
       : null;
 
     if (activeFeature && map) {
@@ -144,7 +143,7 @@ export default function MapView({
   // Re-sync edge layer when the active parcel's edges change (e.g. after shape edit + reparse)
   useEffect(() => {
     const activeFeature = activeParcelId
-      ? parcelFeaturesRef.current.get(activeParcelId)
+      ? parcelFeaturesRef.current[activeParcelId]
       : null;
     updateEdges(activeParcel?.edges ?? [], activeFeature);
   }, [activeParcel?.edges, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps
