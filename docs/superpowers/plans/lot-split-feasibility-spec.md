@@ -642,7 +642,7 @@ Activate the `reports` table (migration `b2a3f91dc017` already written). Wire `P
 HTML template (Jinja2) + SVG lot diagram from engine geometry output. PDF export (Playwright). `GET /v1/feasibility/{id}/pdf`.
 
 **Phase 6 — Web UI (✅ complete).**
-OpenLayers 9.x map served from `app/static/` at `GET /`. File upload (GeoJSON/KML/SHP zip), freehand polygon draw, per-edge click selection with live length labels, zoning rules form, results table with scenario and flag display. Assets served via FastAPI `StaticFiles` mount at `/static/`.
+React 18 + MUI v5 + OpenLayers 9.x SPA. Source in `frontend/`, built to `app/static/` via Vite (`base: '/static/'`). Features: file upload (GeoJSON/KML/SHP zip), freehand polygon draw, per-edge click selection with live length labels, zoning rules form, verdict card + sub-score breakdown, scenarios table. Assets served via FastAPI `StaticFiles` mount at `/static/`.
 
 **Phase 7 — Scoring & risk model (✅ complete).**
 `app/scoring/scoring.py` — deterministic 0–100 score across five weighted sub-scores (zoning compliance 35%, physical buildability 25%, access/utility 15%, process complexity 10%, financial upside 15% placeholder). `score_result()` returns a `FeasibilityScore` with sub-score breakdowns and a `Recommendation` enum (PURSUE / PURSUE_WITH_CAUTION / UNLIKELY / NOT_FEASIBLE). Score and verdict card rendered in the UI. 35 scoring tests, 167 total.

@@ -35,5 +35,8 @@ alembic/versions/*.pyc
 *.swo
 .DS_Store
 
+# Frontend
+frontend/node_modules/
+
 # Claude Code local settings (contains machine-specific paths)
 .claude/settings.local.json
