@@ -28,6 +28,12 @@ export default createTheme({
     },
     MuiTextField: {
       defaultProps: { size: 'small' },
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-input': { fontSize: 12 },
+          '& .MuiInputLabel-root': { fontSize: 12 },
+        },
+      },
     },
   },
 });

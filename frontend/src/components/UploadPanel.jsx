@@ -1,10 +1,9 @@
 import React, { useRef } from 'react';
-import {
-  Box, Button, Typography, Stack,
-} from '@mui/material';
+import { Box, Button, Typography, Stack } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import { SectionLabel } from './shared';
 
 export default function UploadPanel({
   parseStatus,
@@ -27,13 +26,7 @@ export default function UploadPanel({
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', display: 'block', mb: 0.75 }}
-      >
-        Step 1
-      </Typography>
+      <SectionLabel>Step 1</SectionLabel>
       <Typography variant="body2" fontWeight={600} sx={{ mb: 1.5 }}>
         Provide Parcel Geometry
       </Typography>
@@ -48,12 +41,7 @@ export default function UploadPanel({
 
       {drawMode ? (
         <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<CloseIcon />}
-            onClick={onCancelDraw}
-          >
+          <Button variant="outlined" color="error" startIcon={<CloseIcon />} onClick={onCancelDraw}>
             Cancel Draw
           </Button>
         </Stack>
@@ -66,11 +54,7 @@ export default function UploadPanel({
           >
             Upload File
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={onStartDraw}
-          >
+          <Button variant="outlined" startIcon={<EditIcon />} onClick={onStartDraw}>
             Draw
           </Button>
           {parcelLoaded && (

@@ -1,32 +1,15 @@
 import React from 'react';
 import {
-  Box, Typography, LinearProgress, Chip, Divider,
+  Box, Typography, LinearProgress, Divider,
   Table, TableHead, TableBody, TableRow, TableCell, Alert,
 } from '@mui/material';
-
-const VERDICT = {
-  PURSUE:              { label: 'Pursue', bg: '#f0fdf4', border: '#86efac', color: '#15803d' },
-  PURSUE_WITH_CAUTION: { label: 'Pursue with Caution', bg: '#fefce8', border: '#fde047', color: '#a16207' },
-  UNLIKELY:            { label: 'Unlikely', bg: '#fff7ed', border: '#fdba74', color: '#c2410c' },
-  NOT_FEASIBLE:        { label: 'Not Feasible', bg: '#fef2f2', border: '#fca5a5', color: '#b91c1c' },
-};
-
-const SUBSCORE_LABELS = {
-  zoning_compliance:    'Zoning Compliance',
-  physical_buildability:'Physical Buildability',
-  access_utility:       'Access & Utility',
-  process_complexity:   'Process Complexity',
-  financial_upside:     'Financial Upside',
-};
-
-function barColor(score) {
-  if (score >= 70) return '#4caf50';
-  if (score >= 50) return '#ff9800';
-  return '#f44336';
-}
+import {
+  VERDICT_CONFIG, SUBSCORE_LABELS, REVIEW_TIER_CONFIG, scoreColor, snakeToTitle,
+} from '../config';
+import { SectionLabel, StatRow, StatusChip } from './shared';
 
 function VerdictCard({ score }) {
-  const v = VERDICT[score.recommendation] ?? VERDICT.UNLIKELY;
+  const v = VERDICT_CONFIG[score.recommendation] ?? VERDICT_CONFIG.UNLIKELY;
   return (
     <Box
       sx={{
@@ -58,13 +41,7 @@ function VerdictCard({ score }) {
 function SubScores({ subScores }) {
   return (
     <Box sx={{ mb: 1.5 }}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', display: 'block', mb: 1 }}
-      >
-        Score Breakdown
-      </Typography>
+      <SectionLabel sx={{ color: '#64748b', mb: 1 }}>Score Breakdown</SectionLabel>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {Object.entries(subScores).map(([key, sub]) => (
           <Box key={key}>
@@ -84,7 +61,7 @@ function SubScores({ subScores }) {
                 height: 5,
                 borderRadius: 3,
                 bgcolor: '#e2e8f0',
-                '& .MuiLinearProgress-bar': { bgcolor: barColor(sub.score), borderRadius: 3 },
+                '& .MuiLinearProgress-bar': { bgcolor: scoreColor(sub.score), borderRadius: 3 },
               }}
             />
             <Typography variant="caption" sx={{ color: '#94a3b8', lineHeight: 1.4, display: 'block', mt: 0.25 }}>
@@ -118,31 +95,17 @@ function ScenariosTable({ scenarios }) {
       </TableHead>
       <TableBody>
         {scenarios.map((s, i) => {
-          const layout = s.lot_layout_type.replace(/_/g, ' ').toLowerCase()
-            .replace(/^\w/, (c) => c.toUpperCase());
-          const isMinor = s.subdivision_review_tier === 'ADMINISTRATIVE_MINOR';
+          const tier = REVIEW_TIER_CONFIG[s.subdivision_review_tier] ?? { label: s.subdivision_review_tier, chipColor: 'gray' };
           return (
             <TableRow key={i} sx={{ '& td': { fontSize: 11, py: 0.5 } }}>
               <TableCell>{s.num_resulting_lots}</TableCell>
-              <TableCell>{layout}</TableCell>
+              <TableCell>{snakeToTitle(s.lot_layout_type)}</TableCell>
               <TableCell>
-                <Chip
-                  label={isMinor ? 'Admin minor' : 'Plan. comm.'}
-                  size="small"
-                  sx={{
-                    fontSize: 10, height: 18,
-                    bgcolor: isMinor ? '#dcfce7' : '#fef9c3',
-                    color: isMinor ? '#15803d' : '#854d0e',
-                  }}
-                />
+                <StatusChip label={tier.label} color={tier.chipColor} />
               </TableCell>
-              <TableCell>
-                {s.requires_variance && (
-                  <Chip label="Variance" size="small" sx={{ fontSize: 10, height: 18, bgcolor: '#fef9c3', color: '#854d0e', mr: 0.5 }} />
-                )}
-                {s.requires_rezone && (
-                  <Chip label="Rezone" size="small" sx={{ fontSize: 10, height: 18, bgcolor: '#fee2e2', color: '#991b1b' }} />
-                )}
+              <TableCell sx={{ display: 'flex', gap: 0.5 }}>
+                {s.requires_variance && <StatusChip label="Variance" color="yellow" />}
+                {s.requires_rezone   && <StatusChip label="Rezone"   color="red" />}
               </TableCell>
             </TableRow>
           );
@@ -157,48 +120,27 @@ export default function ResultsPanel({ results }) {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', display: 'block', mb: 1 }}
-      >
-        Results
-      </Typography>
+      <SectionLabel>Results</SectionLabel>
 
       {score && <VerdictCard score={score} />}
       {score && <SubScores subScores={score.sub_scores} />}
 
       <Divider sx={{ my: 1.5 }} />
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f8fafc' }}>
-        <Typography variant="caption" sx={{ color: '#64748b' }}>Max theoretical lots</Typography>
-        <Typography variant="caption" fontWeight={600}>
-          {max_theoretical_lots ?? '—'}
-          {data_gap && (
-            <Chip label="Data gap" size="small" sx={{ ml: 0.5, fontSize: 10, height: 18, bgcolor: '#fef9c3', color: '#854d0e' }} />
-          )}
-        </Typography>
-      </Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: '#64748b' }}>Scenarios found</Typography>
-        <Typography variant="caption" fontWeight={600}>{scenarios.length}</Typography>
-      </Box>
+      <StatRow label="Max theoretical lots" value={max_theoretical_lots ?? '—'}>
+        {data_gap && <StatusChip label="Data gap" color="yellow" />}
+      </StatRow>
+      <StatRow label="Scenarios found" value={scenarios.length} sx={{ borderBottom: 'none' }} />
 
       <ScenariosTable scenarios={scenarios} />
 
       {disqualifying_flags.length > 0 && (
         <Box sx={{ mt: 1.5 }}>
-          <Typography
-            variant="caption"
-            fontWeight={700}
-            sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', display: 'block', mb: 0.75 }}
-          >
-            Disqualifying Flags
-          </Typography>
+          <SectionLabel sx={{ color: '#64748b', mb: 0.75 }}>Disqualifying Flags</SectionLabel>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {disqualifying_flags.map((f) => (
               <Alert key={f} severity="error" sx={{ py: 0, fontSize: 11 }}>
-                {f.replace(/_/g, ' ')}
+                {snakeToTitle(f)}
               </Alert>
             ))}
           </Box>
