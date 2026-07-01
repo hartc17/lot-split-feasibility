@@ -11,6 +11,8 @@ import LineString from 'ol/geom/LineString';
 import GeoJSONFormat from 'ol/format/GeoJSON';
 import { MAP_LAYER_STYLES as S } from '../config';
 
+const _fmt = new GeoJSONFormat();
+
 // ── Layer builders ────────────────────────────────────────────────────────────
 
 function buildParcelLayer(source, activeIdRef) {
@@ -57,21 +59,59 @@ function buildEdgeLayer(source, selectedIdxRef) {
   });
 }
 
+function buildSplitLineLayer(source) {
+  return new VectorLayer({
+    source,
+    style: new Style({
+      stroke: new Stroke({
+        color:    S.splitLine.color,
+        width:    S.splitLine.width,
+        lineDash: S.splitLine.lineDash,
+      }),
+    }),
+    zIndex: 10,
+  });
+}
+
+function buildSplitSectionLayer(source) {
+  return new VectorLayer({
+    source,
+    style: (feature) => {
+      const cfg = feature.get('viable') ? S.splitSection.viable : S.splitSection.notViable;
+      return new Style({
+        stroke: new Stroke(cfg.stroke),
+        fill:   new Fill(cfg.fill),
+      });
+    },
+    zIndex: 5,
+  });
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useMapLayers(activeIdRef, selectedIdxRef) {
-  const parcelSourceRef = useRef(null);
-  const edgeSourceRef   = useRef(null);
-  const parcelLayerRef  = useRef(null);
-  const edgeLayerRef    = useRef(null);
+  const parcelSourceRef       = useRef(null);
+  const edgeSourceRef         = useRef(null);
+  const parcelLayerRef        = useRef(null);
+  const edgeLayerRef          = useRef(null);
+  const splitLineSourceRef    = useRef(null);
+  const splitLineLayerRef     = useRef(null);
+  const splitSectionSourceRef = useRef(null);
+  const splitSectionLayerRef  = useRef(null);
 
   if (parcelSourceRef.current === null) {
-    const parcelSource = new VectorSource();
-    const edgeSource   = new VectorSource();
-    parcelSourceRef.current = parcelSource;
-    edgeSourceRef.current   = edgeSource;
-    parcelLayerRef.current  = buildParcelLayer(parcelSource, activeIdRef);
-    edgeLayerRef.current    = buildEdgeLayer(edgeSource, selectedIdxRef);
+    const parcelSource       = new VectorSource();
+    const edgeSource         = new VectorSource();
+    const splitLineSource    = new VectorSource();
+    const splitSectionSource = new VectorSource();
+    parcelSourceRef.current       = parcelSource;
+    edgeSourceRef.current         = edgeSource;
+    splitLineSourceRef.current    = splitLineSource;
+    splitSectionSourceRef.current = splitSectionSource;
+    parcelLayerRef.current        = buildParcelLayer(parcelSource, activeIdRef);
+    edgeLayerRef.current          = buildEdgeLayer(edgeSource, selectedIdxRef);
+    splitLineLayerRef.current     = buildSplitLineLayer(splitLineSource);
+    splitSectionLayerRef.current  = buildSplitSectionLayer(splitSectionSource);
   }
 
   const addParcelToMap = useCallback((id, polygon4326) => {
@@ -109,8 +149,41 @@ export function useMapLayers(activeIdRef, selectedIdxRef) {
     });
   }, []);
 
+  const updateSplitLines = useCallback((splitLines) => {
+    const source = splitLineSourceRef.current;
+    source.clear();
+    splitLines.forEach(({ id, geometry4326 }) => {
+      const feature = _fmt.readFeature(geometry4326, {
+        dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857',
+      });
+      feature.set('splitLineId', id);
+      source.addFeature(feature);
+    });
+  }, []);
+
+  const updateSplitSections = useCallback((splitSections) => {
+    const source = splitSectionSourceRef.current;
+    source.clear();
+    if (!splitSections) return;
+    splitSections.sections.forEach((section, i) => {
+      const feature = _fmt.readFeature(section.geometry, {
+        dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857',
+      });
+      const viable = (
+        section.meets_min_lot_size &&
+        section.meets_min_frontage &&
+        section.has_buildable_envelope
+      );
+      feature.set('sectionIndex', i);
+      feature.set('viable', viable);
+      source.addFeature(feature);
+    });
+  }, []);
+
   return {
     parcelSourceRef, edgeSourceRef, parcelLayerRef, edgeLayerRef,
+    splitLineLayerRef, splitSectionLayerRef,
     addParcelToMap, removeParcelFromMap, updateEdges,
+    updateSplitLines, updateSplitSections,
   };
 }

@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.feasibility import router as feasibility_router
 from app.api.routes.parse import router as parse_router
+from app.api.routes.split import router as split_router
 
 _STATIC_DIR = pathlib.Path(__file__).parent.parent / "static"
 
@@ -17,6 +18,7 @@ app = FastAPI(
 
 app.include_router(parse_router, prefix="/v1/parse")
 app.include_router(feasibility_router, prefix="/v1/feasibility")
+app.include_router(split_router, prefix="/v1/split")
 
 
 @app.get("/health")

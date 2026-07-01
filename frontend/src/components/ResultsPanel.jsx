@@ -114,8 +114,35 @@ function ScenariosTable({ scenarios }) {
   );
 }
 
+function ManualSplitResults({ manualSplit }) {
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+        <SectionLabel sx={{ mb: 0, color: '#64748b' }}>Manual Split</SectionLabel>
+        <StatusChip
+          label={manualSplit.all_sections_viable ? 'All viable' : 'Issues found'}
+          color={manualSplit.all_sections_viable ? 'green' : 'red'}
+        />
+      </Box>
+      {manualSplit.sections.map((s, i) => {
+        const viable = s.meets_min_lot_size && s.meets_min_frontage && s.has_buildable_envelope;
+        return (
+          <StatRow
+            key={i}
+            label={`Section ${i + 1}`}
+            value={`${s.area_sqft.toLocaleString(undefined, { maximumFractionDigits: 0 })} sqft`}
+            sx={{ borderBottom: i < manualSplit.sections.length - 1 ? '1px solid #f8fafc' : 'none' }}
+          >
+            <StatusChip label={viable ? 'OK' : 'Issues'} color={viable ? 'green' : 'red'} />
+          </StatRow>
+        );
+      })}
+    </Box>
+  );
+}
+
 export default function ResultsPanel({ results }) {
-  const { score, max_theoretical_lots, scenarios, disqualifying_flags, data_gap } = results;
+  const { score, max_theoretical_lots, scenarios, disqualifying_flags, data_gap, manual_split } = results;
 
   return (
     <Box sx={{ p: 2 }}>
@@ -142,6 +169,13 @@ export default function ResultsPanel({ results }) {
             ))}
           </Box>
         </Box>
+      )}
+
+      {manual_split && (
+        <>
+          <Divider sx={{ my: 1.5 }} />
+          <ManualSplitResults manualSplit={manual_split} />
+        </>
       )}
     </Box>
   );

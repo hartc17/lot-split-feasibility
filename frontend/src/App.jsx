@@ -7,18 +7,20 @@ import UploadPanel from './components/UploadPanel';
 import ParcelListPanel from './components/ParcelListPanel';
 import EdgePanel from './components/EdgePanel';
 import ZoningPanel, { ZONING_DEFAULTS } from './components/ZoningPanel';
+import SplitPanel from './components/SplitPanel';
 import ResultsPanel from './components/ResultsPanel';
 import { CollapsibleSection } from './components/shared';
 import { useParcels } from './hooks/useParcels';
-import { parseFile, parseGeojson, runFeasibility } from './api';
+import { parseFile, parseGeojson, runFeasibility, computeSplit } from './api';
 
 export default function App() {
   const { parcels, activeParcelId, activeParcel, add, update, remove, clearAll, setActiveParcelId } =
     useParcels(ZONING_DEFAULTS);
 
-  const [drawMode, setDrawMode] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [apiError, setApiError] = useState(null);
+  const [drawMode, setDrawMode]   = useState(false);
+  const [editMode, setEditMode]   = useState(false);
+  const [splitMode, setSplitMode] = useState(false);
+  const [apiError, setApiError]   = useState(null);
   const drawCountRef    = useRef(0);
   const resultsRef      = useRef(null);
   const zoningPanelRef  = useRef(null);
@@ -73,10 +75,12 @@ export default function App() {
     update(activeParcelId, { loading: true, results: null });
     setApiError(null);
     try {
+      const splitLineGeoms = (activeParcel.splitLines ?? []).map((l) => l.geometry4326);
       const data = await runFeasibility(
         activeParcel.polygon4326,
         activeParcel.selectedEdgeIndices,
         zoningData,
+        splitLineGeoms.length ? splitLineGeoms : null,
       );
       update(activeParcelId, { results: data, loading: false });
     } catch (err) {
@@ -95,6 +99,8 @@ export default function App() {
         edges:               data.edges,
         selectedEdgeIndices: [],
         results:             null,
+        splitLines:          [],
+        splitSections:       null,
       });
     } catch (err) {
       setApiError(err.message);
@@ -104,9 +110,11 @@ export default function App() {
   const handleActivateParcel = useCallback((id) => {
     setActiveParcelId(id);
     setEditMode(false);
+    setSplitMode(false);
   }, [setActiveParcelId]);
 
   const handleEditParcel = useCallback((id) => {
+    setSplitMode(false);
     if (id !== activeParcelId) {
       setActiveParcelId(id);
       setEditMode(true);
@@ -115,9 +123,60 @@ export default function App() {
     }
   }, [activeParcelId, setActiveParcelId]);
 
+  const _fetchSplitSections = useCallback(async (parcel, newSplitLines) => {
+    if (!newSplitLines.length || !parcel?.polygon4326) return;
+    try {
+      const data = await computeSplit(
+        parcel.polygon4326,
+        parcel.selectedEdgeIndices,
+        parcel.zoningForm,
+        newSplitLines.map((l) => l.geometry4326),
+      );
+      update(parcel.id, { splitSections: data, splitSectionsLoading: false });
+    } catch {
+      update(parcel.id, { splitSectionsLoading: false });
+    }
+  }, [update]);
+
+  const handleSplitLineAdded = useCallback((geometry4326) => {
+    if (!activeParcelId || !activeParcel) return;
+    const id = crypto.randomUUID();
+    const newSplitLines = [...(activeParcel.splitLines ?? []), { id, geometry4326 }];
+    update(activeParcelId, { splitLines: newSplitLines, splitSectionsLoading: true, splitSections: null });
+    _fetchSplitSections({ ...activeParcel, id: activeParcelId }, newSplitLines);
+  }, [activeParcelId, activeParcel, update, _fetchSplitSections]);
+
+  const handleSplitLineRemoved = useCallback((lineId) => {
+    if (!activeParcelId || !activeParcel) return;
+    const newSplitLines = (activeParcel.splitLines ?? []).filter((l) => l.id !== lineId);
+    if (newSplitLines.length === 0) {
+      update(activeParcelId, { splitLines: [], splitSections: null });
+      return;
+    }
+    update(activeParcelId, { splitLines: newSplitLines, splitSectionsLoading: true, splitSections: null });
+    _fetchSplitSections({ ...activeParcel, id: activeParcelId }, newSplitLines);
+  }, [activeParcelId, activeParcel, update, _fetchSplitSections]);
+
+  const handleSplitLinesClear = useCallback(() => {
+    if (!activeParcelId) return;
+    update(activeParcelId, { splitLines: [], splitSections: null });
+  }, [activeParcelId, update]);
+
+  const handleToggleSplitMode = useCallback(() => {
+    setSplitMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setDrawMode(false);
+        setEditMode(false);
+      }
+      return next;
+    });
+  }, []);
+
   const handleClearAll = useCallback(() => {
     clearAll();
     setDrawMode(false);
+    setSplitMode(false);
     setApiError(null);
     drawCountRef.current = 0;
   }, [clearAll]);
@@ -149,10 +208,14 @@ export default function App() {
             selectedEdgeIndices={activeParcel?.selectedEdgeIndices ?? []}
             editMode={editMode}
             drawMode={drawMode}
+            splitMode={splitMode}
+            splitLines={activeParcel?.splitLines ?? []}
+            splitSections={activeParcel?.splitSections ?? null}
             onEdgeToggle={handleEdgeToggle}
             onDrawComplete={handleDrawComplete}
             onActivateParcel={handleActivateParcel}
             onParcelModified={handleParcelModified}
+            onSplitLineAdded={handleSplitLineAdded}
           />
           {drawMode && (
             <Button
@@ -184,7 +247,7 @@ export default function App() {
               <UploadPanel
                 parcelCount={parcels.length}
                 onUploadFiles={handleUploadFiles}
-                onStartDraw={() => setDrawMode(true)}
+                onStartDraw={() => { setDrawMode(true); setSplitMode(false); }}
                 onClearAll={handleClearAll}
               />
             </CollapsibleSection>
@@ -220,6 +283,20 @@ export default function App() {
                   edges={activeParcel.edges ?? []}
                   selectedEdgeIndices={activeParcel.selectedEdgeIndices ?? []}
                   onToggleEdge={handleEdgeToggle}
+                />
+              </CollapsibleSection>
+            )}
+
+            {parcelLoaded && (
+              <CollapsibleSection title="Manual Split">
+                <SplitPanel
+                  splitLines={activeParcel.splitLines ?? []}
+                  splitSections={activeParcel.splitSections ?? null}
+                  splitSectionsLoading={activeParcel.splitSectionsLoading ?? false}
+                  splitMode={splitMode}
+                  onToggleSplitMode={handleToggleSplitMode}
+                  onRemoveSplitLine={handleSplitLineRemoved}
+                  onClearSplitLines={handleSplitLinesClear}
                 />
               </CollapsibleSection>
             )}

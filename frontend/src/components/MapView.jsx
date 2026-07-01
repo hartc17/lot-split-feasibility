@@ -17,32 +17,41 @@ export default function MapView({
   selectedEdgeIndices,
   editMode,
   drawMode,
+  splitMode,
+  splitLines,
+  splitSections,
   onEdgeToggle,
   onDrawComplete,
   onActivateParcel,
   onParcelModified,
+  onSplitLineAdded,
 }) {
-  const containerRef         = useRef(null);
-  const mapRef               = useRef(null);
-  const drawInteractionRef   = useRef(null);
-  const modifyInteractionRef = useRef(null);
-  const selectedIdxRef       = useRef([]);
-  const activeIdRef          = useRef(null);
-  const parcelFeaturesRef    = useRef({}); // parcelId → OL Feature
+  const containerRef          = useRef(null);
+  const mapRef                = useRef(null);
+  const drawInteractionRef    = useRef(null);
+  const splitDrawInterRef     = useRef(null);
+  const modifyInteractionRef  = useRef(null);
+  const selectedIdxRef        = useRef([]);
+  const activeIdRef           = useRef(null);
+  const parcelFeaturesRef     = useRef({}); // parcelId → OL Feature
 
-  const onEdgeToggleRef     = useRef(onEdgeToggle);
-  const onDrawCompleteRef   = useRef(onDrawComplete);
-  const onActivateParcelRef = useRef(onActivateParcel);
-  const onParcelModifiedRef = useRef(onParcelModified);
+  const onEdgeToggleRef      = useRef(onEdgeToggle);
+  const onDrawCompleteRef    = useRef(onDrawComplete);
+  const onActivateParcelRef  = useRef(onActivateParcel);
+  const onParcelModifiedRef  = useRef(onParcelModified);
+  const onSplitLineAddedRef  = useRef(onSplitLineAdded);
 
   useEffect(() => { onEdgeToggleRef.current     = onEdgeToggle; },     [onEdgeToggle]);
   useEffect(() => { onDrawCompleteRef.current   = onDrawComplete; },   [onDrawComplete]);
   useEffect(() => { onActivateParcelRef.current = onActivateParcel; }, [onActivateParcel]);
   useEffect(() => { onParcelModifiedRef.current = onParcelModified; }, [onParcelModified]);
+  useEffect(() => { onSplitLineAddedRef.current = onSplitLineAdded; }, [onSplitLineAdded]);
 
   const {
     parcelLayerRef, edgeLayerRef, edgeSourceRef,
+    splitLineLayerRef, splitSectionLayerRef,
     addParcelToMap, removeParcelFromMap, updateEdges,
+    updateSplitLines, updateSplitSections,
   } = useMapLayers(activeIdRef, selectedIdxRef);
 
   // Map lifecycle — runs once
@@ -53,7 +62,13 @@ export default function MapView({
 
     const map = new Map({
       target: containerRef.current,
-      layers: [new TileLayer({ source: new OSM() }), parcelLayer, edgeLayer],
+      layers: [
+        new TileLayer({ source: new OSM() }),
+        splitSectionLayerRef.current,
+        parcelLayer,
+        edgeLayer,
+        splitLineLayerRef.current,
+      ],
       view: new View({ center: fromLonLat([-98, 38]), zoom: 4 }),
     });
     mapRef.current = map;
@@ -154,7 +169,7 @@ export default function MapView({
     updateEdges(activeParcel?.edges ?? [], activeFeature);
   }, [activeParcel?.edges, activeParcelId]); // eslint-disable-line react-hooks/exhaustive-deps -- updateEdges is stable
 
-  // Draw interaction — stays active after each drawend for multi-draw
+  // Draw interaction (parcel) — stays active after each drawend for multi-draw
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -175,6 +190,38 @@ export default function MapView({
       }
     }
   }, [drawMode]);
+
+  // Split-line draw interaction — exclusive with drawMode/editMode
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (splitMode) {
+      if (splitDrawInterRef.current) return;
+      const interaction = new Draw({ source: new VectorSource(), type: 'LineString' });
+      interaction.on('drawend', (evt) => {
+        const geom = evt.feature.getGeometry().clone().transform('EPSG:3857', 'EPSG:4326');
+        onSplitLineAddedRef.current({ type: 'LineString', coordinates: geom.getCoordinates() });
+      });
+      map.addInteraction(interaction);
+      splitDrawInterRef.current = interaction;
+    } else {
+      if (splitDrawInterRef.current) {
+        map.removeInteraction(splitDrawInterRef.current);
+        splitDrawInterRef.current = null;
+      }
+    }
+  }, [splitMode]);
+
+  // Sync split lines layer from React state (source of truth)
+  useEffect(() => {
+    updateSplitLines(splitLines ?? []);
+  }, [splitLines]); // eslint-disable-line react-hooks/exhaustive-deps -- updateSplitLines is stable
+
+  // Sync split section overlays from API result
+  useEffect(() => {
+    updateSplitSections(splitSections ?? null);
+  }, [splitSections]); // eslint-disable-line react-hooks/exhaustive-deps -- updateSplitSections is stable
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }

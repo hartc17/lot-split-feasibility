@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from app.api.routes.split import build_manual_split_evaluation
 from app.api.schemas import (
     FeasibilityRequest,
     FeasibilityResponse,
@@ -61,6 +62,18 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
         for s in result.scenarios
     ]
 
+    manual_split = None
+    if body.split_lines:
+        try:
+            manual_split = build_manual_split_evaluation(
+                polygon_4326,
+                body.frontage_edge_indices,
+                zoning_dict,
+                body.split_lines,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     return FeasibilityResponse(
         report_id=None,
         status="complete",
@@ -80,4 +93,5 @@ async def run_feasibility(body: FeasibilityRequest) -> FeasibilityResponse:
                 for k, v in fscore.sub_scores.items()
             },
         ),
+        manual_split=manual_split,
     )

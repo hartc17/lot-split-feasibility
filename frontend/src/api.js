@@ -46,7 +46,7 @@ export async function parseGeojson(geojson) {
   );
 }
 
-export async function runFeasibility(geometry, frontageEdgeIndices, zoning) {
+export async function runFeasibility(geometry, frontageEdgeIndices, zoning, splitLines = null) {
   return handleResponse(
     await fetch('/v1/feasibility', {
       method: 'POST',
@@ -55,6 +55,22 @@ export async function runFeasibility(geometry, frontageEdgeIndices, zoning) {
         geometry,
         frontage_edge_indices: frontageEdgeIndices,
         zoning,
+        ...(splitLines?.length ? { split_lines: splitLines } : {}),
+      }),
+    }),
+  );
+}
+
+export async function computeSplit(geometry, frontageEdgeIndices, zoning, splitLines) {
+  return handleResponse(
+    await fetch('/v1/split/compute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        geometry,
+        frontage_edge_indices: frontageEdgeIndices,
+        zoning,
+        split_lines: splitLines,
       }),
     }),
   );

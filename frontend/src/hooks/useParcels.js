@@ -28,6 +28,9 @@ export function useParcels(defaultZoningForm) {
         zoningForm: { ...defaultZoningForm },
         results: null,
         loading: false,
+        splitLines: [],         // [{id, geometry4326}] WGS84 GeoJSON LineStrings
+        splitSections: null,    // ManualSplitEvaluation | null
+        splitSectionsLoading: false,
       },
     ]);
     setActiveParcelId(id);

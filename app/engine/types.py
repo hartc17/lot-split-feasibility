@@ -126,6 +126,27 @@ class LotResult:
 
 
 @dataclass
+class ManualLotResult:
+    geometry: Polygon
+    area_sqft: float
+    area_acres: float
+    frontage_ft: float
+    buildable_width_ft: float
+    buildable_depth_ft: float
+    has_direct_frontage: bool
+    meets_min_lot_size: bool
+    meets_min_frontage: bool
+    has_buildable_envelope: bool
+
+
+@dataclass
+class ManualSplitResult:
+    lots: list[ManualLotResult]
+    all_lots_viable: bool
+    flags: list[RiskFlag]
+
+
+@dataclass
 class ScenarioResult:
     lot_layout_type: LotLayoutType
     resulting_lots: list[LotResult]

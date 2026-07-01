@@ -82,6 +82,15 @@ export const MAP_LAYER_STYLES = {
       offsetY:       -10,
     },
   },
+  splitLine: {
+    color:    '#f97316',
+    width:    2.5,
+    lineDash: [8, 5],
+  },
+  splitSection: {
+    viable:    { stroke: { color: '#16a34a', width: 1.5 }, fill: { color: 'rgba(34,197,94,0.12)' } },
+    notViable: { stroke: { color: '#dc2626', width: 1.5 }, fill: { color: 'rgba(239,68,68,0.12)' } },
+  },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

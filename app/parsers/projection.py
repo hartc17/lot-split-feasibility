@@ -26,6 +26,13 @@ def project_to_feet(polygon_4326: Polygon) -> Polygon:
     return poly_ft
 
 
+def unproject_polygon_from_feet(polygon_ft: Polygon, utm_epsg: str) -> Polygon:
+    """Inverse of project_to_feet: scale feet back to UTM meters, then transform to WGS84."""
+    poly_m = _scale(polygon_ft, 1.0 / _M_TO_FT)
+    to_wgs84 = Transformer.from_crs(utm_epsg, "EPSG:4326", always_xy=True)
+    return transform(to_wgs84.transform, poly_m)
+
+
 def project_linestring_to_feet(line_4326: LineString, utm_epsg: str) -> LineString:
     """Project a WGS84 LineString to the given UTM zone then scale to feet."""
     to_utm = Transformer.from_crs("EPSG:4326", utm_epsg, always_xy=True)
